@@ -17,6 +17,7 @@ from metrics import (log_scenario_attempt, log_critical_indicators,
                      update_module_progress, get_user_performance, get_module_progress, 
                      get_attempt_history, get_survey_comparison, get_learning_metrics)
 from survey_engine import build_survey_view_model, validate_submission, save_survey_submission
+from email_difficulty import band_distance, clamp_level, level_guidance, score_email
 
 load_dotenv()
 
@@ -1235,17 +1236,70 @@ def phone_roleplay_progress_summary():
 ################################
 #         Email AI
 ################################
+def _clean_model_html(raw):
+    candidate = (raw or "").strip()
+    if candidate.startswith("```"):
+        candidate = candidate.replace("```html", "").replace("```", "").strip()
+    if len(candidate) < 10:
+        return None
+    return candidate
+
+
+def _request_generated_email(prompt):
+    headers = {
+        "Authorization": f"Bearer {GROQ_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "openai/gpt-oss-20b",
+        "reasoning_effort": "low",
+        "include_reasoning": False,
+        "max_completion_tokens": 2048,
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    resp = requests.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers=headers,
+        json=payload
+    )
+    groq_data = resp.json()
+    if "choices" not in groq_data:
+        return None
+    return _clean_model_html(groq_data["choices"][0]["message"]["content"])
+
+
+def _fallback_email_html(is_scam):
+    if is_scam:
+        return """
+<b>From:</b> Account Security &lt;security-review@notice-check.com&gt;<br>
+<b>To:</b> user@example.com<br>
+<b>Subject:</b> Urgent sign-in review needed<br><br>
+<hr><br>
+<p style="font-family:Arial; font-size:15px; line-height:1.55;">We noticed unusual activity connected to your recent account use. Please review your sign-in details as soon as possible to avoid interruption.</p>
+<p style="font-family:Arial; font-size:15px; line-height:1.55;">Use the secure verification page here: <a href="https://account-review-notice.com">Verify now</a></p>
+""".strip()
+    return """
+<b>From:</b> Community Services &lt;updates@community-center.org&gt;<br>
+<b>To:</b> user@example.com<br>
+<b>Subject:</b> Monthly account update<br><br>
+<hr><br>
+<p style="font-family:Arial; font-size:15px; line-height:1.55;">Hello, this is a routine update to let you know your account settings and contact information are available to review in your normal member portal.</p>
+<p style="font-family:Arial; font-size:15px; line-height:1.55;">There is no urgent action needed. You can visit the usual website whenever it is convenient for you.</p>
+""".strip()
+
+
 @app.route("/generate-email", methods=["POST"])
 def generate_email():
     import random as _random
     data = request.get_json(silent=True) or {}
     platform = (data.get("platform") or "desktop").lower()
     category = "difficulty_email_mobile" if platform == "mobile" else "difficulty_email_desktop"
-    difficulty = get_difficulty(category)
+    difficulty = clamp_level(get_difficulty(category))
     output_language = get_llm_output_language()
 
     is_scam = _random.random() < 0.5
     expected_label = "scam" if is_scam else "not_scam"
+    wording = level_guidance(expected_label, difficulty)
 
     html_structure = """REQUIRED STRUCTURE (must appear exactly like this):
 <b>From:</b> sender name &lt;sender@domain.com&gt;<br>
@@ -1275,13 +1329,12 @@ The email must be formatted like a real email using clean HTML:
 {output_rules}
 
 PHISHING RULES:
-- Include ONE subtle malicious link.
-- Domain should look almost real (e.g. https://login.microsoft-review.com).
-- Tone should sound normal, professional, believable.
-- Red flags must be subtle at higher difficulty (3-4).
+- Include ONE link.
+- This is a training simulation. Do not include live credential theft steps.
 - Write all visible email text in {output_language}.
 
 DIFFICULTY LEVEL: {difficulty}
+WORDING FOR THIS LEVEL: {wording}
 Generate a NEW realistic PHISHING email now. Do NOT write a real/safe email.
 """
     else:
@@ -1295,64 +1348,45 @@ The email must be formatted like a real email using clean HTML:
 
 LEGITIMATE EMAIL RULES:
 - No malicious links.
-- Natural business or personal tone.
-- No unusual urgency or threats.
-- No login verification requests.
+- Do not ask for a password, one-time code, or payment.
 - Use a real-looking company domain.
 - Write all visible email text in {output_language}.
 
 DIFFICULTY LEVEL: {difficulty}
+WORDING FOR THIS LEVEL: {wording}
 Generate a NEW realistic LEGITIMATE email now. Do NOT write a phishing or scam email.
 """
 
-    headers = {
-        "Authorization": f"Bearer {GROQ_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "model": "openai/gpt-oss-20b", "reasoning_effort": "low", "include_reasoning": False, "max_completion_tokens": 2048,
-        "messages": [{"role": "user", "content": prompt}]
-    }
-
-    email_html = None
-    for _attempt in range(2):
-        resp = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers=headers,
-            json=payload
-        )
-        groq_data = resp.json()
-        if "choices" not in groq_data:
+    best = None
+    for _attempt in range(3):
+        candidate = _request_generated_email(prompt)
+        if not candidate:
             continue
-        candidate = groq_data["choices"][0]["message"]["content"].strip()
-        if candidate.startswith("```"):
-            candidate = candidate.replace("```html", "").replace("```", "").strip()
-        if len(candidate) >= 10:
-            email_html = candidate
+        scored = score_email(candidate)
+        distance = band_distance(scored["p_spam"], expected_label, difficulty)
+        if best is None or distance < best["distance"]:
+            best = {
+                "distance": distance,
+                "html": candidate,
+                "p_spam": scored["p_spam"],
+            }
+        if distance == 0:
             break
 
-    if not email_html:
-        if is_scam:
-            email_html = f"""
-<b>From:</b> Account Security &lt;security-review@notice-check.com&gt;<br>
-<b>To:</b> user@example.com<br>
-<b>Subject:</b> Urgent sign-in review needed<br><br>
-<hr><br>
-<p style="font-family:Arial; font-size:15px; line-height:1.55;">We noticed unusual activity connected to your recent account use. Please review your sign-in details as soon as possible to avoid interruption.</p>
-<p style="font-family:Arial; font-size:15px; line-height:1.55;">Use the secure verification page here: <a href="https://account-review-notice.com">Verify now</a></p>
-""".strip()
-        else:
-            email_html = f"""
-<b>From:</b> Community Services &lt;updates@community-center.org&gt;<br>
-<b>To:</b> user@example.com<br>
-<b>Subject:</b> Monthly account update<br><br>
-<hr><br>
-<p style="font-family:Arial; font-size:15px; line-height:1.55;">Hello, this is a routine update to let you know your account settings and contact information are available to review in your normal member portal.</p>
-<p style="font-family:Arial; font-size:15px; line-height:1.55;">There is no urgent action needed. You can visit the usual website whenever it is convenient for you.</p>
-""".strip()
+    if best is None:
+        email_html = _fallback_email_html(is_scam)
+        p_spam = score_email(email_html)["p_spam"]
+    else:
+        email_html = best["html"]
+        p_spam = best["p_spam"]
 
-    return jsonify({"success": True, "email": email_html, "expected_label": expected_label})
+    return jsonify({
+        "success": True,
+        "email": email_html,
+        "expected_label": expected_label,
+        "difficulty": difficulty,
+        "p_spam": round(p_spam, 4),
+    })
 
 @app.route("/api/analyze", methods=["POST"])
 def analyze_email():

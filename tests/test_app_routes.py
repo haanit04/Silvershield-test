@@ -721,6 +721,9 @@ def test_content_generators_fall_back_when_groq_returns_no_choices(app_client, m
     assert email_response.status_code == 200
     assert email_payload["success"] is True
     assert email_payload["email"]
+    assert email_payload["expected_label"] in {"scam", "not_scam"}
+    assert email_payload["difficulty"] == 1
+    assert isinstance(email_payload["p_spam"], float)
 
     assert sms_response.status_code == 200
     assert sms_payload["success"] is True
