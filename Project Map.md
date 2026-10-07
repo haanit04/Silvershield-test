@@ -585,7 +585,7 @@ Username/email, password, then OTP slide. CSS: `style.css`, `landingStyle.css`, 
 Multi-step registration: username, password, email, phone + OTP, address. CSS: `style.css`, `accountStyle.css`. Script: `auth.js`.
 
 `templates/survey.html`
-Renders whatever survey object the server passed (pre or post): consent, sections, Likert scales, single and multi choice. CSS: `style.css`, `landingStyle.css`, `dashboard.css`. Small inline script for form behavior. Language links and logout.
+Renders whatever survey object the server passed (pre or post): consent, sections, Likert scales, single and multi choice. CSS: `style.css`, `landingStyle.css`, `dashboard.css`, `survey.css`. Small inline script for form behavior. Language links and logout.
 
 `templates/dashboard.html`
 Module cards linking to `/module1`, `/module2`, `/phone_roleplay`, plus the continue/complete call to action. Inline script sets `dashboardLabels`. Script: `dashboard.js`. CSS: `style.css`, `landingStyle.css`, `dashboard.css`.
@@ -597,10 +597,10 @@ Fake desktop with an email window and a browser window. Real/Fake buttons, read-
 Fake phone home screen. Apps load snippets. Inline script sets `mobileLabels`. Scripts: `tts.js`, `voiceInput.js`, `script.js`. CSS: `style.css`, `mobileStyle.css`.
 
 `templates/phoneRoleplay.html`
-Four scenario buttons and the call UI. Inline script builds `window.roleplayI18n` (translated strings). Script: `phoneRoleplay.js`. CSS is mostly in the template plus `style.css`.
+Four scenario buttons and the call UI. Inline script builds `window.roleplayI18n` (translated strings). Script: `phoneRoleplay.js`. CSS: `style.css`, `phoneRoleplay.css`.
 
 `templates/systemUsabilitySurvey.html`
-Old standalone SUS form with its own `<style>`. The route no longer renders it. SUS is section S7 of the post-survey.
+Old standalone SUS form. CSS: `systemUsabilitySurvey.css`. The route no longer renders it. SUS is section S7 of the post-survey.
 
 ## Static HTML snippets
 
@@ -862,6 +862,21 @@ Listens once. Matches the transcript against real words (`real`, `safe`, `seguro
 | `static/dashboard.css` | Dashboard cards and survey layout |
 | `static/desktopStyle.css` | Desktop email and browser windows |
 | `static/mobileStyle.css` | Phone frame and the four app screens |
+| `static/survey.css` | Pre- and post-training survey layout and Likert-scale controls |
+| `static/phoneRoleplay.css` | Phone scam role-play layout, scenario cards, and responsive rules |
+| `static/systemUsabilitySurvey.css` | Legacy standalone SUS form |
+
+## Frontend organization notes
+
+The frontend is organized by responsibility so a visual change can be made in the smallest relevant file:
+
+- `style.css` contains shared foundation styles: reset rules, reusable colors, form controls, buttons, and the `.is-hidden` utility.
+- Each page or simulation has its own CSS file. Templates should link to that file instead of adding a page-level `<style>` block.
+- Reusable classes describe purpose rather than a one-time visual value. For example, `.dashboardContainer--compact`, `.btn--assessment`, and `.message-audio-control` replace hard-coded inline styles.
+- JavaScript may reveal an element by assigning `element.style.display`; `.is-hidden` provides the initial hidden state without putting `style="display:none"` in the template.
+- The only intentional inline styles are the two `--scale-count` values in `survey.html`. They are generated from the number of Likert-scale labels in the survey data, so they cannot be a fixed CSS value.
+
+When editing the frontend, keep structure and translated text in `templates/`, behavior in `static/*.js`, and presentation in `static/*.css`. This makes it easier to review changes and reduces the chance that a styling change breaks a route or interaction.
 
 ## Tests
 

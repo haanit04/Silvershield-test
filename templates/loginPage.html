@@ -30,7 +30,7 @@
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
 {% set category, message = messages[0] %}
-<div class="dashboardContainer" style="padding-top: 16px;">
+<div class="dashboardContainer dashboardContainer--compact">
        <div class="dashboardFlash dashboardFlash-{{ category }}">{{ message }}</div>
 </div>
 {% endif %}

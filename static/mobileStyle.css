@@ -1,3 +1,25 @@
+/* Module navigation */
+.module-back-wrap {
+    text-align: center;
+}
+
+.module-back-link {
+    display: inline-block;
+    margin: 14px auto 8px;
+    padding: 10px 14px;
+    border: 1px solid rgba(15, 23, 42, 0.2);
+    border-radius: 10px;
+    background: #2563eb;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2);
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.module-back-link:hover {
+    background: #1d4ed8;
+}
+
 /* Phone container */
 .body{
     display: flex;

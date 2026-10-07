@@ -863,6 +863,9 @@ body {
 .email-controls,
 .internet-controls {
     margin-top: 0 !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .rf-container,
@@ -885,6 +888,26 @@ body {
     left: auto;
     bottom: auto;
     width: auto;
+}
+
+.module-back-link {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 9999;
+    display: inline-block;
+    padding: 10px 14px;
+    border: 1px solid rgba(15, 23, 42, 0.2);
+    border-radius: 10px;
+    background: #2563eb;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2);
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.module-back-link:hover {
+    background: #1d4ed8;
 }
 
 .chrome-shell {

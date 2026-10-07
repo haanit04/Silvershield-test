@@ -1,3 +1,11 @@
+/* Shared foundation ------------------------------------------------------- */
+:root {
+  --brand-navy: #141f35;
+  --brand-blue: #0073e6;
+  --brand-blue-hover: #005bb5;
+  --text-on-dark: #ffffff;
+}
+
 /* Reset */
 * {
   margin: 0;
@@ -9,7 +17,12 @@ html, body {
   min-height: 100%;
   height: auto;
   font-family: Arial, sans-serif;
-  background-color: #141F35;
+  background-color: var(--brand-navy);
+}
+
+/* JavaScript can reveal these elements by assigning an inline display value. */
+.is-hidden {
+  display: none;
 }
 
 h1 {
@@ -51,8 +64,8 @@ p {
 .btn {
   width: 100%;
   padding: 12px;
-  background: #0073e6;
-  color: #fff;
+  background: var(--brand-blue);
+  color: var(--text-on-dark);
   border: none;
   border-radius: 6px;
   font-size: 1rem;
@@ -65,7 +78,7 @@ p {
 }
 
 .btn:hover {
-  background: #005bb5;
+  background: var(--brand-blue-hover);
 }
 
 /* Links */
