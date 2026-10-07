@@ -14,14 +14,50 @@
 
 <a class="module-back-link" href="{{ back_to_dashboard_url }}">{{ _("Back to Dashboard") }}</a>
 
-<!-- Desktop Icons -->
+
+<!-- ------------ ------------ ------------ ------------ ------------ ------------ ------------ ------------ ------------ -->
+<!-- ------------ ------------ Desktop Icons  ------------ ------------ ------------ ------------ -------------- -------- -->
+<!-- ------------ ------------ ------------ ------------ ------------ ------------ ------------ ------------ ------------ -->
+
+
+<!-- ------------ ------------ Icons that display on the desktop ------------ ------------ ------------ ------------ ---- -->
+<!-- div class = (icon email) is calling two classes the base Icon class and the email class applying two classes into one  -->
+
 <div class="desktop">
-    <div class="icon email" data-label="{{ _('Gmail') }}"></div>
-    <div class="icon internet" data-label="{{ _('Chrome') }}"></div>
+
+    <div class = "help-box">
+        <p class = "hint-title">Welcome to the SilverShield Desktop Simulation Module</p>
+        <p class = "hint-des">This simulation is designed to look like a standard computer screen with three appplications 
+            available to be used.To get started click on the <strong>Gmail</strong> Icon or the <strong>Chrome</strong> Icon.
+            If you need to view this hint again click on the <strong>Help</strong> Icon. Click on the <strong>X</strong> to close this hint.
+        </p>
+        <div class = "hint-popup-close">X</div>
+    </div>
+
+
+    <div class = "desktop-icons">
+        <div class="icon email">
+            <div class = "icon-title">
+                Email
+            </div>
+        </div>
+        <div class="icon internet">
+            <div class = "icon-title">
+                Chrome
+            </div>
+        </div>
+        <div class = "icon help">
+            <div class = "icon-title">
+                Help
+            </div>
+        </div>
+    </div>
 </div>
+<!-- ------------ ------------ ------------ ------------ ------------ ------------ ------------ ------------- ----------- -->
 
 
-<!-- Bottom Taskbar -->
+
+<!-- ------------ ------------ Icons that display at the bottom of the desktop ------------ ------------ -->
 <div class="taskbar">
     <div class="taskbar-left">
         <div class="menuIcon"></div>
@@ -32,11 +68,13 @@
         <div class="cornerIcon"></div>
     </div>
 </div>
+<!-- ------------ ------------ ------------ ------------ ------------ ------------ ------------ ------------ -->
 
 
-<!-- ------------ -->
-<!-- Email Window -->
-<!-- ------------ -->
+
+<!-- ------------ ------------ ------------ ------------ ------------ ------------ ------------ ------------ -->
+<!-- ------------ ------------ Email Window ------------ ------------------------ ------------- ------------ -->
+<!-- ------------ ------------ ------------ ------------ ------------ ------------ ------------ ------------ -->
 
 <div class="popup" id="emailWindow">
 
@@ -113,6 +151,20 @@
             </section>
         </div>
 
+        <!-- This is the HTML code that adds a hint box when the user clicks the Email Icon -->
+        <div class = "email-window-hint">
+            <p class = "hint-title">Welcome to your Email Simulation</p>
+            <p class = "hint-des"> In this simulation, you'll learn how to identify different types of email scams. An email will appear
+                in the popup with important information, such as the sender, recipient and the subject. The information and difficulty will
+                be different for each email. For more accessibility the <strong>Read Aloud</strong> button will allow the user to listen to the 
+                email details. When ready, use the buttons to determine if the email is <strong>Real</strong> or <strong>Fake</strong>. Based on your 
+                response you will receive feedback based on if your answer was correct or incorrect.
+                Click on the <strong>X</strong> to close this hint.
+            </p>
+            <div class = "hint-popup-close email-close" id = "emailHintClose">X</div>
+        </div>
+
+
     </div>
 
 
@@ -125,9 +177,9 @@
 </div>
 
 
-<!-- --------------- -->
-<!-- Internet Window -->
-<!-- --------------- -->
+<!-- --------------- --------------- --------------- --------------- --------------- --------------- --------------- --------------- -->
+<!-- --------------- --------------- --------------- Internet/Chrome Window --------------- ---------------- --------------- ------- -->
+<!-- --------------- --------------- --------------- --------------- --------------- --------------- --------------- --------------- -->
 
 <div class="popup" id="internetWindow">
 
@@ -202,7 +254,6 @@
         </div>
 
         <div id="internetFeedback" class="feedback-box"></div>
-
     </div>
 
 
@@ -212,7 +263,20 @@
         <div id="notificationMessageInternet"></div>
     </div>
 
-</div>
+
+    <!-- This is the HTML code that adds a hint box when the user clicks the Email Icon -->
+    <div class = "internet-window-hint">
+        <p class = "hint-title">Welcome to your Internet Simulation</p>
+        <p class = "hint-des"> In this simulation, you'll learn how to identify different types of scam websites. A simulated google result will appear
+            with different links leading to different websites. For more accessibility the <strong>Read Aloud</strong> button will allow the user to listen
+            to the google results currently being displayed. When you are ready click on any website link to get redirected to their home page. Then use the buttons to
+            determine if the website is <strong>Real</strong> or <strong>Fake</strong>. Afterwards you will be given feedback based on if your answer is correct or 
+            incorrect. Click on the <strong>X</strong> to close this hint.
+        </p>
+        <div class = "hint-popup-close email-close">X</div>
+    </div>
+
+</div> 
 
 
 <script>
@@ -252,5 +316,6 @@ window.desktopLabels = {
 <script src="{{ url_for('static', filename='desktopEmail.js') }}"></script>
 <script src="{{ url_for('static', filename='desktopInternet.js') }}"></script>
 <script src="{{ url_for('static', filename='notification.js') }}"></script>
+<script src = "/static/desktop.js"></script>
 </body>
 </html>

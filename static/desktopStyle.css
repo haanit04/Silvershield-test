@@ -4,58 +4,202 @@
 body {
     margin: 0;
     height: 100vh;
+    max-height: 100vh;
     background-image: url(images/Background.jpg);
     background-repeat: no-repeat;
     background-size: cover;
     background-position: center;
+    overflow: hidden;
 }
 
-/* Desktop Icon Base */
-.icon {
-    width: 64px;
+
+/* This is the container that will hold the help information*/
+.help-box{
+    position:fixed;
+    right: 20px;
+    top:20px;
+    width: 30%;
+    height:auto;
+    border:2px solid black;
+    text-align: center;
+    background-color:#FFFF88;
+    border-radius: 15px 5px 15px 15px;
+}
+
+.hint-title{
+    margin-top: 8px;
+    font-size: 15px;
+    font-weight: bold;
+    color:black;
+    padding:0px 30px;
+}
+
+.hint-des{
+    font-size: 14px;
+    color: black;
+    padding:0px 30px;
+}
+
+/* This calls the base icon class and we create 
+a new CSS class called help that use different values*/
+.icon.help{
+    top:140px;
+    left: 4%;
+    height: 8%;
+    background-image: url(images/helpIcon.png);
+    background-repeat: no-repeat;
+}
+
+
+/* This is the Hint box that shows up when the user clicks on the email icon*/
+.email-window-hint{
+    position:fixed;
     height: auto;
+    width:25%;
+    bottom:40px;
+    left: 25px;
+    border:2px solid black;
+    text-align: center;
+    background-color:#FFFF88;
+    border-radius: 15px 5px 15px 15px;
+
+}
+
+
+/* This is the internet window hint box that shows up once the user clicks the internet icon*/
+.internet-window-hint{
+    position:fixed;
+    height: auto;
+    width:25%;
+    bottom:35%;
+    left: 65%;
+    border:2px solid black;
+    text-align: center;
+    background-color:#FFFF88;
+    border-radius: 15px 5px 15px 15px;
+}
+
+.desktop-icons {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 55px;             
+    padding: 20px 4%;
+    display: flex;
+    flex-direction: column;   
+    flex-wrap: wrap;          
+    align-content: flex-start;
+    gap: 0 24px;
+}
+
+
+/*Once the screen goes down to a certain width hide the hint box*/
+/* Remove the hint box once it gets too small*/
+@media(max-width: 1100px){
+    .internet-window-hint{
+        display: none;
+    }
+}
+
+@media(max-width: 563px){
+    .help-box{
+        display: none;
+    }
+}
+
+
+@media(max-width: 1215px){
+    .email-window-hint{
+        display: none;
+    }
+}
+
+
+/* This media query will change the icon and the hint window if the screen becomes too small - height*/
+@media (max-height: 720px) {
+    .icon {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 32px;
+    }
+
+    .internet-window-hint{
+        display: none;
+    }
+    .email-window-hint{
+        display:none;
+    }
+}
+
+@media (max-height:(500px)){
+    .internet-window-hint{
+        display: none;
+    }
+}
+@media (max-height:(200px)){
+    .help-box{
+        display: none;
+    }
+    
+}
+
+/* With the yellow hints create a base class for the X that will allow us to close the hint
+ This is used to Position the X into the corner*/
+.hint-popup-close{
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    cursor:pointer;
+}
+
+.hidden{
+    display: none;
+}
+
+
+
+/* This is the Base Class for each icon - each icon will inherit this making adding new icons easier */
+.icon {
+    position: relative;       
+    flex: 0 0 auto;
+    width: clamp(48px, 9dvh, 80px);
+    height: clamp(48px, 9dvh, 80px);
+    margin-bottom: 40px;    
     background-size: contain;
+    background-repeat: no-repeat;
     background-position: center;
     cursor: pointer;
-    position: absolute;
-    text-align: center;
 }
 
-/* Email Icon */
+
+/* Only handles the Email Icon for the desktop - Calls the base Icon CSS Class and creates its own email class using the base*/
 .icon.email {
-    top: 100px;
-    left: 100px;
-    height: 70px;
+    top: 110px;
+    left: 4%;
+    height: 7%;
     background-image: url(images/gmailIcon.png);
     background-repeat: no-repeat;
 }
 
-.icon.email::after {
-    content: attr(data-label);
-    display: block;
-    margin-top: 75px;
-    font-size: 25px;
-    color: white;
-    text-shadow: 1px 1px 2px black;
-}
-
-/*Internet Icon */
+/* Only handles the Internet Icon - Calls the base Icon CSS Class and creates its own internet class using the base*/
 .icon.internet {
-    top: 230px;
-    left: 100px;
-    height: 65px;
+    top: 120px;
+    left: 4%;
+    height: 7%;
     background-image: url(images/internetIcon.png);
     background-repeat: no-repeat;
 }
 
-.icon.internet::after {
-    content: attr(data-label);
-    display: block;
-    margin-top: 75px;
-    margin-left: -10px;
-    font-size: 25px;
+
+.icon-title {
+    position: absolute;
+    top: 100%;
+    left: 50%;      
+    transform: translateX(-50%);
+    font-size: clamp(15px, 1.5vw, 25px);
     color: white;
     text-shadow: 1px 1px 2px black;
+    white-space: nowrap;
 }
 
 /*****************************
@@ -125,10 +269,10 @@ body {
 .popup {
     display: none;
     position: absolute;
-    top: 50px;
-    left: 200px;
-    width: 1200px;
-    height: 750px;
+    top: 3%;
+    left: 12.5%;
+    width: 87%;
+    height: 90%;
     background-color: white;
     border: 2px solid #333;
     box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.5);
