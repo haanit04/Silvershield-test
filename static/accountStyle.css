@@ -75,3 +75,8 @@
     margin-bottom: 0.5rem;
     margin-top: 1rem;
 }
+
+/* The OTP controls are revealed by auth.js after a code is sent. */
+#otp-section.is-hidden {
+    display: none;
+}

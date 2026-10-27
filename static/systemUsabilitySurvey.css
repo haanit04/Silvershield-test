@@ -1,0 +1,12 @@
+/* Legacy standalone System Usability Survey styles. */
+
+body { font-family: Arial, sans-serif; background:#f6f7fb; margin:0; }
+.wrap { max-width: 760px; margin: 40px auto; padding: 0 16px; }
+.card { background:white; border-radius:16px; padding:24px; box-shadow:0 10px 24px rgba(0,0,0,.08); }
+h1 { margin:0 0 8px; font-size:28px; }
+p { margin:0 0 16px; color:#444; }
+label { display:block; font-weight:600; margin-top:18px; margin-bottom:8px; }
+select { width:100%; padding:12px; border-radius:10px; border:1px solid #ddd; font-size:16px; }
+button { margin-top:24px; width:100%; padding:14px; border:none; border-radius:12px; font-size:18px; background:#2563eb; color:white; cursor:pointer; }
+.err { color:#b91c1c; font-weight:600; margin: 10px 0; }
+.scale { font-size:14px; color:#64748b; margin-bottom:12px; }

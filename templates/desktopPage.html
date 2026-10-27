@@ -8,27 +8,6 @@
 
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='desktopStyle.css') }}">
-    <style>
-        .module-back-link {
-            position: fixed;
-            top: 14px;
-            left: 14px;
-            z-index: 9999;
-            display: inline-block;
-            padding: 10px 14px;
-            border-radius: 10px;
-            background: #2563eb;
-            color: #fff;
-            font-weight: 700;
-            text-decoration: none;
-            border: 1px solid rgba(15, 23, 42, 0.2);
-            box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2);
-        }
-
-        .module-back-link:hover {
-            background: #1d4ed8;
-        }
-    </style>
 </head>
 
 <body>
@@ -111,11 +90,11 @@
                 </div>
 
                 <div class="desktop-actions-row">
-                    <div class="email-controls" style="display:flex;gap:8px;align-items:center;">
+                    <div class="email-controls">
                         <button id="readAloudBtn" class="rf-btn">{{ _("Read aloud") }}</button>
                     </div>
 
-                    <div id="emailButtons" class="rf-container" style="display:none;">
+                    <div id="emailButtons" class="rf-container is-hidden">
                         <button id="realBtn" class="rf-btn real">
                             {{ _("REAL") }}
                         </button>
@@ -130,7 +109,7 @@
                     </div>
                 </div>
 
-                <div id="emailFeedback" class="feedback-box" style="display:none;"></div>
+                <div id="emailFeedback" class="feedback-box is-hidden"></div>
             </section>
         </div>
 
@@ -173,7 +152,7 @@
             </div>
 
             <div class="browser-bar">
-                <button id="internetBackBtn" class="browser-nav-btn" style="display:none;">← {{ _('Results') }}</button>
+                <button id="internetBackBtn" class="browser-nav-btn is-hidden">← {{ _('Results') }}</button>
                 <input
                     id="addressBar"
                     value="{{ _('security alerts') }}"
@@ -203,11 +182,11 @@
         </div>
 
         <div class="desktop-actions-row">
-            <div class="internet-controls" style="display:flex;gap:8px;align-items:center;">
+            <div class="internet-controls">
                 <button id="internetReadAloudBtn" class="rf-btn">{{ _("Read aloud") }}</button>
             </div>
 
-            <div id="internetButtons" class="site-actions" style="display:none;">
+            <div id="internetButtons" class="site-actions is-hidden">
                 <button id="internetRealBtn" class="rf-btn real">
                     {{ _("REAL") }}
                 </button>

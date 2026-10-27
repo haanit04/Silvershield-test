@@ -20,7 +20,9 @@ Silvershield is a Flask cybersecurity-training app. Users register, pass SMS two
 8. After the post-survey, the dashboard stays available
 9. `GET /logout` — clears the session, keeps the language choice
 
-Difficulty is stored per user, per channel, on a 1–4 scale (easy, medium, hard, very hard). A correct answer raises that channel by 1 (capped at 4). A wrong answer resets it to 1.
+Difficulty is stored per user, per channel, on a 1–10 scale. Level 1 uses clear warning signs; Level 10 uses subtle, realistic scenarios that require careful inspection of the sender, domain, request, and context. A correct answer raises that channel by 1 (capped at 10). A wrong answer lowers it by 1 (never below 1).
+
+After a correct Level-10 answer, the interface offers **Free Practice**. Free Practice keeps generating Level-10 scenarios and gives normal feedback, but it deliberately does **not** save the user's difficulty, attempt history, module progress, or dashboard results. It is intended for unlimited extra practice without changing the completed learning record.
 
 Languages: English (`en`), Spanish (`es`), Chinese (`zh`). `GET /set_language/<lang>` stores the choice in the session and redirects back.
 
@@ -414,7 +416,16 @@ Allows only same-site paths that start with `/`. Blocks full URLs.
 Reads one difficulty column for the logged-in user. Returns 1 if logged out or missing. `category` is a column name such as `difficulty_email_desktop`.
 
 `set_difficulty(category, level)`
-Clamps level to 1–4 and saves it for the logged-in user.
+Clamps level to 1–10 and saves it for the logged-in user.
+
+`scenario_difficulty(category, data)`
+Uses the saved difficulty during normal training. When request body includes `free_practice: true`, it uses Level 10 without reading or changing the saved level.
+
+`next_difficulty(level, is_correct)`
+Raises a correct answer by one level or lowers an incorrect answer by one level, while keeping the result between 1 and 10.
+
+`is_free_practice(data)`
+Checks whether a scenario request is part of Free Practice. Scoring routes use this flag to skip all database writes.
 
 ## `app.py` — page routes
 
@@ -528,10 +539,10 @@ Login required. Overall completed count, average score, average time, plus the s
 All of these are POST, all call Groq, and all have hardcoded fallbacks.
 
 `POST /generate-email` — `generate_email()`
-Body `platform`: `"mobile"` or `"desktop"` (default desktop). Coin-flip scam vs legitimate. Reads that platform's email difficulty. Returns `{success, email: HTML, expected_label: "scam"|"not_scam"}`.
+Body `platform`: `"mobile"` or `"desktop"` (default desktop), optional `free_practice: true`. Coin-flip scam vs legitimate. Reads that platform's saved difficulty, or uses Level 10 for Free Practice. Returns `{success, email: HTML, expected_label: "scam"|"not_scam", difficulty, practice_mode}`.
 
 `POST /api/generate_sites` — `generate_sites()`
-Desktop browser. Reads `difficulty_internet_desktop`.
+Desktop browser. Reads `difficulty_internet_desktop`; `free_practice: true` uses Level 10 without changing saved progress.
 
 Inner helpers:
 
@@ -543,13 +554,13 @@ Inner helpers:
 `mode "list"` (default): 5 shuffled results (sponsored legit, sponsored phishing, two legit, one phishing). `mode "open"`: HTML mock page for the clicked result. Phishing pages are training mockups with placeholder fields. Other modes: 400.
 
 `POST /generate-sms` — `generate_sms()`
-Coin-flip scam vs legitimate SMS. Reads `difficulty_sms_mobile`. Optional `theme` (default bank / package / delivery / login security). Returns `{success, difficulty, expected_label, sms: {number, text, time, clues}}`.
+Coin-flip scam vs legitimate SMS. Reads `difficulty_sms_mobile`, or uses Level 10 when `free_practice: true`. Optional `theme` (default bank / package / delivery / login security). Returns `{success, difficulty, expected_label, sms: {number, text, time, clues}}`.
 
 `POST /generate-call` — `generate_call()`
-Coin-flip scam vs legitimate call transcript. Reads `difficulty_call_mobile`. Optional `theme` (default government agency or tech support). Returns `{success, difficulty, expected_label, call: {number, caller_name, transcript, clues}}`.
+Coin-flip scam vs legitimate call transcript. Reads `difficulty_call_mobile`, or uses Level 10 when `free_practice: true`. Optional `theme` (default government agency or tech support). Returns `{success, difficulty, expected_label, call: {number, caller_name, transcript, clues}}`.
 
 `POST /generate-web` — `generate_web()`
-Mobile browser. Reads `difficulty_web_mobile`.
+Mobile browser. Reads `difficulty_web_mobile`, or uses Level 10 when `free_practice: true`.
 
 Inner helpers:
 
@@ -562,13 +573,13 @@ Inner helpers:
 ## `app.py` — scoring
 
 `POST /api/analyze` — `analyze_email()`
-Desktop email scoring. If the body includes `"type"`, it forwards to `analyze_any()`. If `expected_label` is present, correctness is computed locally and Groq only writes the explanation and clues. Otherwise Groq decides correct/incorrect. Updates `difficulty_email_desktop`, logs scenario type `"email"` / platform `"desktop"`, updates module progress `"email_desktop"`. Returns `{success, feedback, difficulty_now}`.
+Desktop email scoring. If the body includes `"type"`, it forwards to `analyze_any()`. If `expected_label` is present, correctness is computed locally and Groq only writes the explanation and clues. Otherwise Groq decides correct/incorrect. During normal training, updates `difficulty_email_desktop`, logs scenario type `"email"` / platform `"desktop"`, and updates module progress `"email_desktop"`. With `free_practice: true`, it gives feedback only and skips every database write. Returns `{success, feedback, difficulty_now, practice_mode, free_practice_available}`.
 
 `POST /api/analyze_website` — `analyze_website()`
-Desktop site scoring. Ground truth is `site_type` from generation (phishing vs legit). Groq writes explanation and clues. Updates `difficulty_internet_desktop`. Logs scenario type `"internet"` / platform `"desktop"`, module progress `"internet_desktop"`.
+Desktop site scoring. Ground truth is `site_type` from generation (phishing vs legit). Groq writes explanation and clues. During normal training it updates `difficulty_internet_desktop`, logs scenario type `"internet"` / platform `"desktop"`, and updates module progress `"internet_desktop"`. Free Practice gives feedback without saving any of these items.
 
 `POST /api/analyze_any` — `analyze_any()`
-Shared scorer for email, internet, sms, call, and web. Body: `type`, `user_choice` (`scam`/`not_scam`/`fake`/`real`), `message`, optional `platform`, `expected_label`, `time_spent_seconds`. Mobile email uses `difficulty_email_mobile`. Other types use the map in the function. Same pattern: `expected_label` makes scoring local; otherwise Groq judges. Logs scenario type `"{type}_{platform}"` and updates module progress with that same key. Returns `{success, feedback, difficulty_now}`.
+Shared scorer for email, internet, sms, call, and web. Body: `type`, `user_choice` (`scam`/`not_scam`/`fake`/`real`), `message`, optional `platform`, `expected_label`, `time_spent_seconds`, and optional `free_practice`. Mobile email uses `difficulty_email_mobile`. Other types use the map in the function. Same pattern: `expected_label` makes scoring local; otherwise Groq judges. Normal training logs scenario type `"{type}_{platform}"` and updates module progress with that same key; Free Practice writes nothing to the database. Returns `{success, feedback, difficulty_now, practice_mode, free_practice_available}`.
 
 `if __name__ == "__main__":`
 Runs the dev server on `0.0.0.0`, `PORT` or 5000, debug off. Production uses `gunicorn app:app` (see `render.yaml`).
@@ -585,7 +596,7 @@ Username/email, password, then OTP slide. CSS: `style.css`, `landingStyle.css`, 
 Multi-step registration: username, password, email, phone + OTP, address. CSS: `style.css`, `accountStyle.css`. Script: `auth.js`.
 
 `templates/survey.html`
-Renders whatever survey object the server passed (pre or post): consent, sections, Likert scales, single and multi choice. CSS: `style.css`, `landingStyle.css`, `dashboard.css`. Small inline script for form behavior. Language links and logout.
+Renders whatever survey object the server passed (pre or post): consent, sections, Likert scales, single and multi choice. CSS: `style.css`, `landingStyle.css`, `dashboard.css`, `survey.css`. Small inline script for form behavior. Language links and logout.
 
 `templates/dashboard.html`
 Module cards linking to `/module1`, `/module2`, `/phone_roleplay`, plus the continue/complete call to action. Inline script sets `dashboardLabels`. Script: `dashboard.js`. CSS: `style.css`, `landingStyle.css`, `dashboard.css`.
@@ -597,10 +608,10 @@ Fake desktop with an email window and a browser window. Real/Fake buttons, read-
 Fake phone home screen. Apps load snippets. Inline script sets `mobileLabels`. Scripts: `tts.js`, `voiceInput.js`, `script.js`. CSS: `style.css`, `mobileStyle.css`.
 
 `templates/phoneRoleplay.html`
-Four scenario buttons and the call UI. Inline script builds `window.roleplayI18n` (translated strings). Script: `phoneRoleplay.js`. CSS is mostly in the template plus `style.css`.
+Four scenario buttons and the call UI. Inline script builds `window.roleplayI18n` (translated strings). Script: `phoneRoleplay.js`. CSS: `style.css`, `phoneRoleplay.css`.
 
 `templates/systemUsabilitySurvey.html`
-Old standalone SUS form with its own `<style>`. The route no longer renders it. SUS is section S7 of the post-survey.
+Old standalone SUS form. CSS: `systemUsabilitySurvey.css`. The route no longer renders it. SUS is section S7 of the post-survey.
 
 ## Static HTML snippets
 
@@ -862,6 +873,21 @@ Listens once. Matches the transcript against real words (`real`, `safe`, `seguro
 | `static/dashboard.css` | Dashboard cards and survey layout |
 | `static/desktopStyle.css` | Desktop email and browser windows |
 | `static/mobileStyle.css` | Phone frame and the four app screens |
+| `static/survey.css` | Pre- and post-training survey layout and Likert-scale controls |
+| `static/phoneRoleplay.css` | Phone scam role-play layout, scenario cards, and responsive rules |
+| `static/systemUsabilitySurvey.css` | Legacy standalone SUS form |
+
+## Frontend organization notes
+
+The frontend is organized by responsibility so a visual change can be made in the smallest relevant file:
+
+- `style.css` contains shared foundation styles: reset rules, reusable colors, form controls, buttons, and the `.is-hidden` utility.
+- Each page or simulation has its own CSS file. Templates should link to that file instead of adding a page-level `<style>` block.
+- Reusable classes describe purpose rather than a one-time visual value. For example, `.dashboardContainer--compact`, `.btn--assessment`, and `.message-audio-control` replace hard-coded inline styles.
+- JavaScript may reveal an element by assigning `element.style.display`; `.is-hidden` provides the initial hidden state without putting `style="display:none"` in the template.
+- The only intentional inline styles are the two `--scale-count` values in `survey.html`. They are generated from the number of Likert-scale labels in the survey data, so they cannot be a fixed CSS value.
+
+When editing the frontend, keep structure and translated text in `templates/`, behavior in `static/*.js`, and presentation in `static/*.css`. This makes it easier to review changes and reduces the chance that a styling change breaks a route or interaction.
 
 ## Tests
 

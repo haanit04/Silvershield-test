@@ -61,6 +61,12 @@ SCAM_GUIDANCE = {
     2: "Use one or two clear scam words such as verify or urgent. Keep the rest professional, with one off-looking link domain.",
     3: "Sound professional. Use at most one mild scam-leaning word. Include one subtle lookalike domain.",
     4: "Avoid typical scam words such as urgent, verify, password, and immediately. Sound like ordinary company mail with one easy-to-miss clue.",
+    5: "Use a plausible business context with one subtle mismatch between the sender, link, or requested action.",
+    6: "Use polished wording and only one quiet warning sign, such as a lookalike domain or an unusual verification step.",
+    7: "Make the message realistic and nuanced. The user should need to inspect the sender, link, and request carefully.",
+    8: "Use a highly convincing routine context. Include one independently verifiable but subtle trust-signal problem.",
+    9: "Make the email ambiguous but still simulated and safe. Include exactly one meaningful clue that supports caution.",
+    10: "Create an expert-level realistic email with a single subtle inconsistency; never request actual credentials or include a live harmful link.",
 }
 
 HAM_GUIDANCE = {
@@ -68,6 +74,12 @@ HAM_GUIDANCE = {
     2: "Mostly ordinary wording. You may mention account or payment once. No password or code request.",
     3: "Write a realistic notice that mentions the account calmly. Do not ask for a password, code, or payment.",
     4: "You may use a few words often seen in scam mail, such as unusual or verify, but the sender domain must be real and the email must not ask for a password, code, or payment.",
+    5: "Use a realistic account-related message with a calm, independently verifiable next step and a genuine sender domain.",
+    6: "Write polished business email that may initially look suspicious but contains clear, quiet trust signals.",
+    7: "Use nuanced routine communication with no pressure, no secret request, and a safe official route for follow-up.",
+    8: "Write a highly authentic message whose legitimacy is supported by subtle domain, context, and non-urgent wording clues.",
+    9: "Make the message ambiguous at first glance, while preserving independently verifiable legitimate trust signals.",
+    10: "Create an expert-level legitimate email: realistic, nuanced, no pressure, and safe to verify through official channels.",
 }
 
 _model = None
@@ -78,7 +90,7 @@ def clamp_level(level):
         level = int(level)
     except (TypeError, ValueError):
         level = 1
-    return max(1, min(4, level))
+    return max(1, min(10, level))
 
 
 def level_guidance(expected_label, level):
@@ -230,21 +242,34 @@ def score_email(html, model=None):
 def _band_interval(expected_label, level):
     """(low, high, low_inclusive, high_inclusive). None means no edge.
 
-    Cutoffs come from the seed corpus after per-word averaging. Obvious scam
-    wording sits near 0.80. Ordinary legitimate mail sits near 0.20.
+    Cutoffs come from the seed corpus after per-word averaging. Higher levels
+    are closer to the classification boundary and therefore require subtler
+    scenarios. The generator still keeps simulated phishing non-operational.
     """
     if expected_label == "scam":
         return {
             1: (0.78, None, True, False),
-            2: (0.68, 0.78, True, False),
-            3: (0.58, 0.68, True, False),
-            4: (0.45, 0.58, True, False),
+            2: (0.70, 0.78, True, False),
+            3: (0.63, 0.70, True, False),
+            4: (0.58, 0.63, True, False),
+            5: (0.55, 0.58, True, False),
+            6: (0.53, 0.55, True, False),
+            7: (0.51, 0.53, True, False),
+            8: (0.49, 0.51, True, False),
+            9: (0.47, 0.49, True, False),
+            10: (0.45, 0.47, True, False),
         }[level]
     return {
-        1: (None, 0.24, False, True),
-        2: (0.24, 0.32, False, True),
-        3: (0.32, 0.42, False, True),
-        4: (0.42, 0.60, False, True),
+        1: (None, 0.14, False, True),
+        2: (0.14, 0.20, False, True),
+        3: (0.20, 0.26, False, True),
+        4: (0.26, 0.32, False, True),
+        5: (0.32, 0.36, False, True),
+        6: (0.36, 0.40, False, True),
+        7: (0.40, 0.43, False, True),
+        8: (0.43, 0.46, False, True),
+        9: (0.46, 0.48, False, True),
+        10: (0.48, 0.50, False, True),
     }[level]
 
 
@@ -271,11 +296,18 @@ def band_distance(p_spam, expected_label, level):
 
 
 def level_for(p_spam, expected_label):
-    for level in (1, 2, 3, 4):
+    # Preserve the original interpretation for a message that is wildly
+    # inconsistent with its requested label: it is difficult, but it is not a
+    # valid candidate for one of the nuanced Level 5-10 bands.
+    if expected_label == "scam" and p_spam < 0.45:
+        return 4
+    if expected_label != "scam" and p_spam > 0.60:
+        return 4
+    for level in range(1, 11):
         if in_band(p_spam, expected_label, level):
             return level
     nearest = min(
-        (1, 2, 3, 4),
+        range(1, 11),
         key=lambda level: (band_distance(p_spam, expected_label, level), level),
     )
     return nearest
