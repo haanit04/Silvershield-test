@@ -9,6 +9,7 @@ let websiteLoadTime = null;
 let currentInternetSpeechText = "";
 let currentInternetQuery = "security alerts";
 let cachedDesktopResults = [];
+let internetFreePractice = false;
 const desktopInternetLabels = globalThis.desktopLabels || {};
 
 const internetContent = document.getElementById("internetContent");
@@ -154,7 +155,7 @@ async function generateDesktopFakeSites(query = getDesktopSearchQuery()) {
         const response = await fetch("/api/generate_sites", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ mode: "list", query: currentInternetQuery })
+            body: JSON.stringify({ mode: "list", query: currentInternetQuery, free_practice: internetFreePractice })
         });
 
         const data = await response.json();
@@ -192,6 +193,7 @@ async function openDesktopWebsite(site) {
                 title,
                 url,
                 site_type: type
+                ,free_practice: internetFreePractice
             })
         });
 
@@ -256,7 +258,8 @@ async function analyzeDesktopWebsite(choice) {
                 user_choice: choice,
                 ai_context: currentWebsiteHTML,
                 site_type: currentWebsiteType,
-                time_spent_seconds: timeSpent
+                time_spent_seconds: timeSpent,
+                free_practice: internetFreePractice
             })
         });
 
@@ -268,8 +271,15 @@ async function analyzeDesktopWebsite(choice) {
         }
 
         const fb = data.feedback;
-        const message = `${fb.explanation} (${desktopInternetLabels.difficultyLabel || "Difficulty"}: ${data.difficulty_now})`;
+        const levelText = internetFreePractice ? "Free Practice — not saved" : `${desktopInternetLabels.difficultyLabel || "Difficulty"}: ${data.difficulty_now}`;
+        const message = `${fb.explanation} (${levelText})`;
         showNotification(fb.correct, message, "internet");
+
+        if (data.free_practice_available) {
+            internetFreePractice = window.confirm(
+                "You completed Level 10. Continue with unlimited Free Practice? These answers will not be saved."
+            );
+        }
 
         if (cachedDesktopResults && cachedDesktopResults.length) {
             renderDesktopSearchResults(cachedDesktopResults, currentInternetQuery);

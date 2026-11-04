@@ -6,7 +6,7 @@ import hashlib
 from dotenv import load_dotenv
 import requests
 from database import init_database, TEST_USER_USERNAME
-from user_login import user_registration, verifying_login
+from user_login import find_account, update_password, user_registration, verifying_login
 from TWOFA import send_otp, verify_otp
 from flask_babel import Babel, gettext, get_locale, _
 import json
@@ -497,6 +497,28 @@ except Exception as _err:
 # Loading difficulty from
 #       the database
 ################################
+MAX_SAVED_DIFFICULTY = 10
+FREE_PRACTICE_DIFFICULTY = MAX_SAVED_DIFFICULTY
+
+
+def is_free_practice(data=None):
+    """Free practice gives feedback, but never changes a user's saved record."""
+    return bool((data or {}).get("free_practice"))
+
+
+def scenario_difficulty(category, data=None):
+    """Free practice always uses the most challenging scenario profile."""
+    if is_free_practice(data):
+        return FREE_PRACTICE_DIFFICULTY
+    return get_difficulty(category)
+
+
+def next_difficulty(level, is_correct):
+    """Move gradually so one missed question does not erase a user's progress."""
+    level = max(1, min(MAX_SAVED_DIFFICULTY, int(level)))
+    return min(MAX_SAVED_DIFFICULTY, level + 1) if is_correct else max(1, level - 1)
+
+
 def get_difficulty(category):
     username = session.get('username')
     if not username:
@@ -507,15 +529,15 @@ def get_difficulty(category):
         cursor.execute(f'SELECT {category} FROM users WHERE username = ?', (username,))
         row = cursor.fetchone()
 
-    return row[0] if row else 1
+    return max(1, min(MAX_SAVED_DIFFICULTY, row[0])) if row else 1
 
 ################################
 # Saving difficulty to the
 #        database
 ################################
 def set_difficulty(category, level):
-    # 1 - easy, 2 - medium, 3 - hard, 4 - very hard
-    level = max(1, min(4, level))
+    # Levels 1-10, from clear warning signs to subtle, realistic scenarios.
+    level = max(1, min(MAX_SAVED_DIFFICULTY, level))
 
     username = session.get('username')
     if not username:
@@ -934,6 +956,90 @@ def send_otp_route():
         print("Error sending OTP", e)
         return jsonify({"success": False, "message": str(e)})
 
+def _password_is_strong(password):
+    if not isinstance(password, str):
+        return False
+    special = "!@#$%^&*()_+-=[]{}|;:'\",.<>/?`~"
+    return (
+        8 <= len(password) <= 15
+        and any(character.isupper() for character in password)
+        and any(character.islower() for character in password)
+        and any(character.isdigit() for character in password)
+        and any(character in special for character in password)
+    )
+
+@app.route('/forgot_password/send', methods=['POST'])
+def forgot_password_send():
+    username_or_email = (request.form.get('username') or '').strip()
+    if not username_or_email:
+        return jsonify({"success": False, "message": "Enter your username or email"})
+
+    username, phone = find_account(username_or_email)
+    if not username or not phone:
+        return jsonify({"success": False, "message": "No account found for that username or email"})
+
+    if username == TEST_USER_USERNAME:
+        return jsonify({
+            "success": False,
+            "message": "The demo account cannot receive a text code, so its password stays the same.",
+        })
+
+    if not phone.startswith("+"):
+        phone = "+1" + phone
+
+    session.pop("reset_verified", None)
+    session["reset_username"] = username
+
+    try:
+        send_otp(phone)
+    except Exception as e:
+        session.pop("reset_username", None)
+        return jsonify({"success": False, "message": str(e)})
+
+    return jsonify({"success": True, "otp_sent": True, "phone": phone})
+
+@app.route('/forgot_password/verify', methods=['POST'])
+def forgot_password_verify():
+    username = session.get("reset_username")
+    if not username:
+        return jsonify({"success": False, "message": "Request a reset code first"})
+
+    phone = (request.form.get('phone') or '').strip()
+    code = (request.form.get('code') or '').strip()
+    if not phone.startswith("+"):
+        phone = "+1" + phone
+
+    try:
+        approved = verify_otp(phone, code)
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+    if not approved:
+        return jsonify({"success": False, "message": "OTP not verified"})
+
+    session["reset_verified"] = True
+    return jsonify({"success": True, "message": "OTP verified"})
+
+@app.route('/forgot_password/update', methods=['POST'])
+def forgot_password_update():
+    username = session.get("reset_username")
+    if not username or not session.get("reset_verified"):
+        return jsonify({"success": False, "message": "Verify the text code before choosing a new password"})
+
+    password = request.form.get('password') or ''
+    if not _password_is_strong(password):
+        return jsonify({
+            "success": False,
+            "message": "Password must be 8 to 15 characters and include an uppercase letter, a lowercase letter, a number, and a special character",
+        })
+
+    if not update_password(username, password):
+        return jsonify({"success": False, "message": "Could not update that account"})
+
+    session.pop("reset_username", None)
+    session.pop("reset_verified", None)
+    return jsonify({"success": True, "message": "Password updated. Log in with your new password."})
+
 @app.route('/verify_otp', methods=['POST'])
 def verify_otp_route():
     if session.get("username") == TEST_USER_USERNAME:
@@ -1294,7 +1400,7 @@ def generate_email():
     data = request.get_json(silent=True) or {}
     platform = (data.get("platform") or "desktop").lower()
     category = "difficulty_email_mobile" if platform == "mobile" else "difficulty_email_desktop"
-    difficulty = clamp_level(get_difficulty(category))
+    difficulty = clamp_level(scenario_difficulty(category, data))
     output_language = get_llm_output_language()
 
     is_scam = _random.random() < 0.5
@@ -1385,6 +1491,7 @@ Generate a NEW realistic LEGITIMATE email now. Do NOT write a phishing or scam e
         "email": email_html,
         "expected_label": expected_label,
         "difficulty": difficulty,
+        "practice_mode": "free" if is_free_practice(data) else "saved",
         "p_spam": round(p_spam, 4),
     })
 
@@ -1418,7 +1525,8 @@ def analyze_email():
     elif normalized_choice == "real":
         normalized_choice = "not_scam"
 
-    difficulty = get_difficulty("difficulty_email_desktop")
+    free_practice = is_free_practice(data)
+    difficulty = scenario_difficulty("difficulty_email_desktop", data)
 
     if expected_label:
         # Deterministic correctness — AI explains why
@@ -1492,15 +1600,13 @@ You MUST respond with ONLY a JSON object. Use double quotes. No markdown.
         except Exception:
             parsed = {"correct": False, "feedback": "Could not parse AI response.", "clues": []}
 
-    # Apply difficulty update
+    # Free practice deliberately produces feedback without changing saved progress.
     is_correct = parsed.get("correct", False)
-    if is_correct:
-        set_difficulty("difficulty_email_desktop", difficulty + 1)
-    else:
-        set_difficulty("difficulty_email_desktop", 1)
+    if not free_practice:
+        set_difficulty("difficulty_email_desktop", next_difficulty(difficulty, is_correct))
 
     username = session.get('username')
-    if username:
+    if username and not free_practice:
         correct_answer = user_choice if is_correct else ("fake" if user_choice == "real" else "real")
         time_spent = request.get_json().get("time_spent_seconds")
         indicators_found = parsed.get("clues", []) if is_correct else []
@@ -1522,7 +1628,9 @@ You MUST respond with ONLY a JSON object. Use double quotes. No markdown.
     return jsonify({
         "success": True,
         "feedback": parsed,
-        "difficulty_now": get_difficulty("difficulty_email_desktop")
+        "difficulty_now": difficulty if free_practice else get_difficulty("difficulty_email_desktop"),
+        "practice_mode": "free" if free_practice else "saved",
+        "free_practice_available": not free_practice and is_correct and difficulty == MAX_SAVED_DIFFICULTY,
     })
 
 ################################
@@ -1537,7 +1645,7 @@ def generate_sites():
     data = request.get_json(silent=True) or {}
     mode = (data.get("mode") or "list").lower()
     query = (data.get("query") or "security alerts").strip()
-    difficulty = get_difficulty("difficulty_internet_desktop")
+    difficulty = scenario_difficulty("difficulty_internet_desktop", data)
     output_language = get_llm_output_language()
 
     headers = {
@@ -1696,7 +1804,8 @@ Requirements:
         ]
 
         random.shuffle(results)
-        return jsonify({"success": True, "query": query, "results": results})
+        return jsonify({"success": True, "query": query, "results": results, "difficulty": difficulty,
+                        "practice_mode": "free" if is_free_practice(data) else "saved"})
 
     if mode == "open":
         title = data.get("title") or f"{brand_name} Support"
@@ -1797,7 +1906,8 @@ def analyze_website():
     if not user_choice or not html or not site_type:
         return jsonify({"success": False, "error": "Missing fields"}), 400
 
-    difficulty = get_difficulty("difficulty_internet_desktop")
+    free_practice = is_free_practice(data)
+    difficulty = scenario_difficulty("difficulty_internet_desktop", data)
 
     # Deterministic scoring: site_type is ground truth set at generation time.
     # "legit" -> user must pick "real"; "phishing" -> user must pick "fake".
@@ -1837,13 +1947,11 @@ Respond ONLY with valid JSON, no markdown:
         parsed["correct"] = is_correct  # always enforce deterministic result
     except Exception:
         parsed = {"correct": is_correct, "explanation": f"This site is {correct_answer_label.lower()}.", "clues": []}
-    if is_correct:
-        set_difficulty("difficulty_internet_desktop", difficulty + 1)
-    else:
-        set_difficulty("difficulty_internet_desktop", 1)
+    if not free_practice:
+        set_difficulty("difficulty_internet_desktop", next_difficulty(difficulty, is_correct))
 
     username = session.get('username')
-    if username:
+    if username and not free_practice:
         time_spent = request.get_json().get("time_spent_seconds")
         ai_context = request.get_json().get("ai_context")
         indicators_found = parsed.get("clues", []) if is_correct else []
@@ -1865,7 +1973,9 @@ Respond ONLY with valid JSON, no markdown:
     return jsonify({
         "success": True,
         "feedback": parsed,
-        "difficulty_now": get_difficulty("difficulty_internet_desktop")
+        "difficulty_now": difficulty if free_practice else get_difficulty("difficulty_internet_desktop"),
+        "practice_mode": "free" if free_practice else "saved",
+        "free_practice_available": not free_practice and is_correct and difficulty == MAX_SAVED_DIFFICULTY,
     })
 
 ################################
@@ -1878,7 +1988,8 @@ def generate_sms():
     Returns JSON.
     """
     import random as _random
-    difficulty = get_difficulty("difficulty_sms_mobile")
+    request_data = request.get_json(silent=True) or {}
+    difficulty = scenario_difficulty("difficulty_sms_mobile", request_data)
     output_language = get_llm_output_language()
     is_scam = _random.random() < 0.5
     expected_label = "scam" if is_scam else "not_scam"
@@ -1887,14 +1998,26 @@ def generate_sms():
         1: "Make the scam VERY obvious: bad grammar, weird link, over-the-top urgency.",
         2: "Scam is noticeable but not too obvious. Some strange phrasing or link.",
         3: "Mostly convincing SMS with subtle red flags only.",
-        4: "Extremely convincing SMS; only trained users notice the clues.",
+        4: "Convincing SMS with only one clear warning sign.",
+        5: "Professional-looking SMS with an unusual sender or domain clue.",
+        6: "Use realistic wording and one subtle mismatch between brand and link.",
+        7: "Use a plausible routine context with a carefully hidden trust signal problem.",
+        8: "Make the message highly realistic; the main clue is a subtle domain or request mismatch.",
+        9: "Make the scenario ambiguous but keep one verifiable warning sign.",
+        10: "Use an expert-level, realistic scenario with one small but meaningful safety clue.",
     }[difficulty]
 
     safe_difficulty_text = {
         1: "A clearly normal message — no urgency, proper grammar, recognizable brand.",
         2: "A mostly normal message but with a generic tone that could be suspicious.",
         3: "A realistic legitimate notification that looks almost identical to real brand messages.",
-        4: "A perfectly legitimate message indistinguishable from real bank/brand texts.",
+        4: "A highly realistic routine message with authentic trust signals.",
+        5: "A realistic message that mentions an account without asking for action.",
+        6: "A polished notice whose official domain and calm wording support legitimacy.",
+        7: "A subtle but legitimate message that could be mistaken for a scam at first glance.",
+        8: "A highly authentic message with a normal, independently verifiable next step.",
+        9: "An ambiguous-looking but legitimate message with quiet trust signals.",
+        10: "An expert-level legitimate message: realistic, nuanced, and still safe to verify independently.",
     }[difficulty]
 
     theme = request.json.get("theme", "bank / package / delivery / login security")
@@ -2046,7 +2169,8 @@ def generate_sms():
 @app.route("/generate-call", methods=["POST"])
 def generate_call():
     import random as _random
-    difficulty = get_difficulty("difficulty_call_mobile")
+    request_data = request.get_json(silent=True) or {}
+    difficulty = scenario_difficulty("difficulty_call_mobile", request_data)
     output_language = get_llm_output_language()
     is_scam = _random.random() < 0.5
     expected_label = "scam" if is_scam else "not_scam"
@@ -2055,14 +2179,26 @@ def generate_call():
         1: "Obvious scam: caller is clearly suspicious.",
         2: "Moderately subtle scam: some clues remain.",
         3: "Convincing scam: only subtle clues.",
-        4: "Extremely convincing scam: only experts notice the red flags.",
+        4: "Convincing scam with one recognizable red flag.",
+        5: "Professional-sounding scam with an unusual request.",
+        6: "Plausible call with a subtle pressure or verification clue.",
+        7: "Realistic call where the caller identity cannot be independently confirmed.",
+        8: "Highly convincing call with one small inconsistency or unsafe request.",
+        9: "Ambiguous scenario with a quiet but meaningful warning sign.",
+        10: "Expert-level scenario: natural conversation with one verifiable safety concern.",
     }[difficulty]
 
     safe_difficulty_text = {
         1: "Clearly legitimate: professional tone, no pressure, easy to identify as real.",
         2: "Legitimate but with a generic script that could raise mild doubt.",
         3: "Realistic legitimate call with subtle details that confirm it's real.",
-        4: "Perfect legitimate call — indistinguishable from a real company rep.",
+        4: "Highly realistic legitimate call with calm, verifiable information.",
+        5: "Professional call that explains a normal purpose without pressure.",
+        6: "Plausible call with independently verifiable contact information.",
+        7: "Subtle, legitimate service call that does not request secrets or urgent action.",
+        8: "Highly authentic call with a safe follow-up through an official channel.",
+        9: "Ambiguous-looking but legitimate call with quiet trust signals.",
+        10: "Expert-level legitimate call: nuanced, realistic, and safe to verify independently.",
     }[difficulty]
 
     theme = request.json.get("theme", "government agency or tech support")
@@ -2190,7 +2326,7 @@ def generate_web():
 
     data = request.get_json(silent=True) or {}
     mode = (data.get("mode") or "search").lower()
-    difficulty = get_difficulty("difficulty_web_mobile")
+    difficulty = scenario_difficulty("difficulty_web_mobile", data)
     output_language = get_llm_output_language()
     query = (data.get("query") or data.get("theme") or "bank account security tips").strip()
 
@@ -2350,7 +2486,8 @@ Use safe placeholder content only and do not include operationally harmful instr
             "difficulty": difficulty,
             "query": query,
             "html": html,
-            "site_type": site_type
+            "site_type": site_type,
+            "practice_mode": "free" if is_free_practice(data) else "saved"
         })
 
     prompt = f"""
@@ -2408,7 +2545,8 @@ Requirements:
         "success": True,
         "difficulty": difficulty,
         "query": query,
-        "web": web_obj
+        "web": web_obj,
+        "practice_mode": "free" if is_free_practice(data) else "saved"
     })
 
 @app.route("/api/analyze_any", methods=["POST"])
@@ -2473,7 +2611,8 @@ def analyze_any():
     if msg_type == "email" and platform == "mobile":
         category = "difficulty_email_mobile"
 
-    difficulty = get_difficulty(category)
+    free_practice = is_free_practice(data)
+    difficulty = scenario_difficulty(category, data)
 
     #Human-readable label (for prompt)
     type_label = {
@@ -2596,13 +2735,11 @@ The trainee selected: {choice.upper()} (SCAM vs NOT SCAM)
     # Updating difficulty
     #####################
     is_correct = parsed.get("correct", False)
-    if is_correct:
-        set_difficulty(category, difficulty + 1)
-    else:
-        set_difficulty(category, 1)
+    if not free_practice:
+        set_difficulty(category, next_difficulty(difficulty, is_correct))
 
     username = session.get('username')
-    if username:
+    if username and not free_practice:
         correct_answer = choice if is_correct else ("not_scam" if choice == "scam" else "scam")
         scenario_type_full = f"{msg_type}_{platform}"
         indicators_found = parsed.get("clues", []) if is_correct else []
@@ -2624,7 +2761,9 @@ The trainee selected: {choice.upper()} (SCAM vs NOT SCAM)
     return jsonify({
         "success": True,
         "feedback": parsed,
-        "difficulty_now": get_difficulty(category)
+        "difficulty_now": difficulty if free_practice else get_difficulty(category),
+        "practice_mode": "free" if free_practice else "saved",
+        "free_practice_available": not free_practice and is_correct and difficulty == MAX_SAVED_DIFFICULTY,
     })
 
 # Main

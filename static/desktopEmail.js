@@ -4,6 +4,7 @@
 let lastGeneratedEmail = "";
 let lastEmailExpectedLabel = "";
 let emailLoadTime = null;
+let emailFreePractice = false;
 const desktopEmailLabels = globalThis.desktopLabels || {};
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -30,7 +31,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({
                     theme: "Email Scam Training",
-                    platform: "desktop"
+                    platform: "desktop",
+                    free_practice: emailFreePractice
                 })
             });
 
@@ -92,7 +94,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     user_choice: choice,
                     message: lastGeneratedEmail,
                     expected_label: lastEmailExpectedLabel,
-                    time_spent_seconds: timeSpent
+                    time_spent_seconds: timeSpent,
+                    free_practice: emailFreePractice
                 })
             });
 
@@ -109,9 +112,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
             showNotification(
                 correct,
-                `${feedback} (${desktopEmailLabels.difficultyLabel || "Difficulty"}: ${difficulty})`,
+                `${feedback} (${emailFreePractice ? "Free Practice — not saved" : `${desktopEmailLabels.difficultyLabel || "Difficulty"}: ${difficulty}`})`,
                 "email"
             );
+
+            if (result.free_practice_available) {
+                emailFreePractice = window.confirm(
+                    "You completed Level 10. Continue with unlimited Free Practice? These answers will not be saved."
+                );
+            }
 
             loadEmail();
         }

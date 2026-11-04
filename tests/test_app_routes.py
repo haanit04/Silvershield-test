@@ -98,6 +98,99 @@ def test_register_and_login_flow(app_client):
     assert login_payload["otp_sent"] is True
 
 
+def test_forgot_password_updates_only_after_otp(app_client):
+    client, _, _ = app_client
+
+    register_response = client.post(
+        "/register",
+        data={
+            "username": "alice",
+            "password": "StrongPass123!",
+            "email": "alice@example.com",
+            "phone": "1234567890",
+            "address": "123 Main St",
+        },
+    )
+    assert register_response.get_json()["success"] is True
+
+    early_update = client.post(
+        "/forgot_password/update",
+        data={"password": "NewPass123!"},
+    )
+    assert early_update.get_json()["success"] is False
+
+    send_response = client.post(
+        "/forgot_password/send",
+        data={"username": "alice@example.com"},
+    )
+    send_payload = send_response.get_json()
+    assert send_payload["success"] is True
+    assert send_payload["phone"] == "+11234567890"
+
+    still_old = client.post(
+        "/login",
+        data={"username": "alice", "password": "StrongPass123!"},
+    )
+    assert still_old.get_json()["success"] is True
+
+    wrong_code = client.post(
+        "/forgot_password/verify",
+        data={"phone": send_payload["phone"], "code": "000000"},
+    )
+    assert wrong_code.get_json()["success"] is False
+
+    verified = client.post(
+        "/forgot_password/verify",
+        data={"phone": send_payload["phone"], "code": "123456"},
+    )
+    assert verified.get_json()["success"] is True
+
+    weak_password = client.post(
+        "/forgot_password/update",
+        data={"password": "short"},
+    )
+    assert weak_password.get_json()["success"] is False
+
+    updated = client.post(
+        "/forgot_password/update",
+        data={"password": "NewPass123!"},
+    )
+    assert updated.get_json()["success"] is True
+
+    old_login = client.post(
+        "/login",
+        data={"username": "alice", "password": "StrongPass123!"},
+    )
+    assert old_login.get_json()["success"] is False
+
+    new_login = client.post(
+        "/login",
+        data={"username": "alice", "password": "NewPass123!"},
+    )
+    assert new_login.get_json()["success"] is True
+
+
+def test_demo_account_password_is_not_reset_by_text(app_client):
+    client, app_module, _ = app_client
+
+    response = client.post(
+        "/forgot_password/send",
+        data={"username": app_module.TEST_USER_USERNAME},
+    )
+    payload = response.get_json()
+    assert payload["success"] is False
+    assert "demo account" in payload["message"]
+
+    login_response = client.post(
+        "/login",
+        data={
+            "username": app_module.TEST_USER_USERNAME,
+            "password": "SilverShieldTest!1",
+        },
+    )
+    assert login_response.get_json()["success"] is True
+
+
 def test_seeded_test_user_bypasses_otp(app_client):
     client, app_module, _ = app_client
 

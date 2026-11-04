@@ -27,6 +27,14 @@ const loginOTPCodeInput = document.getElementById("login-otp-code");
 const loginOtpError = document.querySelector(".login-otp-error");
 const loginNext = document.querySelector(".login-next");
 const loginVerifyOTPBtn = document.querySelector(".login-verify-otp-btn");
+const loginForgotPassword = document.querySelector(".login-forgot-password");
+const loginResetSend = document.querySelector(".login-reset-send");
+const loginResetSave = document.querySelector(".login-reset-save");
+const loginResetUsername = document.getElementById("login-reset-username");
+const loginResetPassword = document.getElementById("login-reset-password");
+const loginResetError = document.querySelector(".login-reset-error");
+const loginResetPasswordError = document.querySelector(".login-reset-password-error");
+let loginPurpose = "login";
 
 /* Phone and slide elements */
 let currentPhoneReg = "";
@@ -83,9 +91,132 @@ function errorElement(input)
 /*************************
  Login Page event listeners
 **************************/
+function resetPasswordMessage(passwordValue)
+{
+    const hasSpecial = /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>/?`~]/;
+    if (!passwordValue)
+    {
+        return "Password cannot be blank.";
+    }
+    if (passwordValue.length < 8 || passwordValue.length > 15)
+    {
+        return "Password must be between 8 and 15 characters.";
+    }
+    if (!/[A-Z]/.test(passwordValue))
+    {
+        return "Must contain at least one uppercase letter.";
+    }
+    if (!/[a-z]/.test(passwordValue))
+    {
+        return "Must contain at least one lowercase letter.";
+    }
+    if (!/\d/.test(passwordValue))
+    {
+        return "Must contain at least one number.";
+    }
+    if (!hasSpecial.test(passwordValue))
+    {
+        return "Must contain at least one special character.";
+    }
+    return "";
+}
+
+if (loginForgotPassword)
+{
+    loginForgotPassword.addEventListener("click", (event) => {
+        event.preventDefault();
+        loginPurpose = "reset";
+        showLoginSlide(3);
+        if (loginResetUsername)
+        {
+            loginResetUsername.focus();
+        }
+    });
+}
+
+document.querySelectorAll(".login-back-to-login").forEach((link) => {
+    link.addEventListener("click", (event) => {
+        event.preventDefault();
+        loginPurpose = "login";
+        showLoginSlide(1);
+    });
+});
+
+if (loginResetSend)
+{
+    loginResetSend.addEventListener("click", async () => {
+        const username = loginResetUsername.value.trim();
+        if (!username)
+        {
+            loginResetError.textContent = "Enter your username or email.";
+            return;
+        }
+
+        let result;
+        try
+        {
+            const response = await fetch("/forgot_password/send", {
+                method: "POST",
+                body: new URLSearchParams({username})
+            });
+            result = await response.json();
+        }
+        catch (error)
+        {
+            loginResetError.textContent = "Could not send a code. Try again.";
+            return;
+        }
+
+        if (!result.success)
+        {
+            loginResetError.textContent = result.message;
+            return;
+        }
+
+        loginPurpose = "reset";
+        currentPhoneLogin = result.phone;
+        loginResetError.textContent = "";
+        showLoginSlide(2);
+        loginOTPCodeInput.focus();
+        loginOtpError.textContent = "OTP sent to your registered phone";
+    });
+}
+
+if (loginResetSave)
+{
+    loginResetSave.addEventListener("click", async () => {
+        const password = loginResetPassword.value;
+        const problem = resetPasswordMessage(password);
+        if (problem)
+        {
+            loginResetPasswordError.textContent = problem;
+            return;
+        }
+
+        const response = await fetch("/forgot_password/update", {
+            method: "POST",
+            body: new URLSearchParams({password})
+        });
+        const result = await response.json();
+
+        if (!result.success)
+        {
+            loginResetPasswordError.textContent = result.message;
+            return;
+        }
+
+        loginPurpose = "login";
+        loginResetPassword.value = "";
+        loginResetPasswordError.textContent = "";
+        alert(result.message);
+        showLoginSlide(1);
+    });
+}
+
 if(loginNext)
 {
     loginNext.addEventListener("click", async () => {
+        loginPurpose = "login";
         const username = loginUsername.value.trim();
         const password = loginPassword.value.trim();
 
@@ -136,22 +267,29 @@ if(loginVerifyOTPBtn)
             return;
         }
 
-        const response = await fetch("/verify_otp", {
+        const verifyUrl = loginPurpose === "reset" ? "/forgot_password/verify" : "/verify_otp";
+        const response = await fetch(verifyUrl, {
             method: "POST",
             body: new URLSearchParams({phone: currentPhoneLogin, code})
         });
 
         const result = await response.json();
 
-        if (result.success)
-        {
-            alert("Login successful!");
-            window.location.href = "/dashboard";
-        }
-        else
+        if (!result.success)
         {
             loginOtpError.textContent = result.message;
+            return;
         }
+
+        if (loginPurpose === "reset")
+        {
+            showLoginSlide(4);
+            loginResetPassword.focus();
+            return;
+        }
+
+        alert("Login successful!");
+        window.location.href = "/dashboard";
     })
 }
 

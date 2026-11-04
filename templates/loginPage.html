@@ -96,7 +96,7 @@
 
 <div class="links">
 
-<a href="#">
+<a href="#" class="login-forgot-password">
 {{ _("Forgot password?") }}
 </a>
 
@@ -142,6 +142,84 @@
 
 </div>
 
+<!-- Slide 3 - request a reset code -->
+
+<div class="login-slide slide" id="login-slide3">
+
+<div class="form-group">
+
+<h1>{{ _("Forgot password") }}</h1>
+
+<p>{{ _("Enter the username or email on your account. We will text you a code.") }}</p>
+
+<label for="login-reset-username">
+{{ _("Email or Username") }}
+</label>
+
+<input type="text"
+       id="login-reset-username"
+       autocomplete="username">
+
+<div class="login-reset-error"></div>
+
+<div class="btn-group">
+
+<button type="button"
+        class="btn login-reset-send">
+
+{{ _("Send code") }}
+
+</button>
+
+</div>
+
+<div class="links">
+
+<a href="#" class="login-back-to-login">
+{{ _("Back to log in") }}
+</a>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- Slide 4 - choose a new password -->
+
+<div class="login-slide slide" id="login-slide4">
+
+<div class="form-group">
+
+<h1>{{ _("New password") }}</h1>
+
+<p>{{ _("Choose a new password for your account.") }}</p>
+
+<label for="login-reset-password">
+{{ _("Password") }}
+</label>
+
+<input type="password"
+       id="login-reset-password"
+       autocomplete="new-password">
+
+<div class="login-reset-password-error"></div>
+
+<div class="btn-group">
+
+<button type="button"
+        class="btn login-reset-save">
+
+{{ _("Save password") }}
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
 </form>
 
 </div>
@@ -155,7 +233,7 @@
 </div>
 
 
-<script src="{{ url_for('static', filename='auth.js') }}"></script>
+<script src="{{ url_for('static', filename='auth.js') }}?v=2"></script>
 
 </body>
 </html>

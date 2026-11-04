@@ -5,6 +5,8 @@ let currentMessage = "";
 let currentType = "";
 let currentDifficulty = "";
 let currentExpectedLabel = "";
+let currentFreePractice = false;
+let freePracticeType = "";
 let scenarioLoadTime = null;
 let currentWebQuery = "";
 let currentWebResults = null;
@@ -124,6 +126,11 @@ const ScenarioEngine = {
     },
 
     async load(type) {
+        // Free practice belongs to the module the user just completed, not every app.
+        if (currentFreePractice && freePracticeType && freePracticeType !== type) {
+            currentFreePractice = false;
+            freePracticeType = "";
+        }
         currentType = type;
         currentExpectedLabel = "";
 
@@ -158,7 +165,8 @@ const ScenarioEngine = {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 theme: "SilverShield training",
-                platform: type === "email" ? "mobile" : undefined
+                platform: type === "email" ? "mobile" : undefined,
+                free_practice: currentFreePractice
             })
         });
 
@@ -172,7 +180,11 @@ const ScenarioEngine = {
         currentDifficulty = data.difficulty;
 
         const diffLabel = document.getElementById("difficultyLabel");
-        if (diffLabel) diffLabel.innerText = `${mobileLabels.level || "Level"}: ${currentDifficulty}`;
+        if (diffLabel) {
+            diffLabel.innerText = currentFreePractice
+                ? "Free Practice — Level 10 (not saved)"
+                : `${mobileLabels.level || "Level"}: ${currentDifficulty}`;
+        }
 
         // Record time scenario was displayed
         scenarioLoadTime = Date.now();
@@ -312,7 +324,7 @@ const ScenarioEngine = {
             const response = await fetch("/generate-web", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ mode: "search", query: normalizedQuery })
+                body: JSON.stringify({ mode: "search", query: normalizedQuery, free_practice: currentFreePractice })
             });
 
             const data = await response.json();
@@ -357,7 +369,8 @@ const ScenarioEngine = {
                     query: currentWebQuery,
                     title: site.title,
                     url: site.url,
-                    site_type: site.site_type
+                    site_type: site.site_type,
+                    free_practice: currentFreePractice
                 })
             });
 
@@ -566,7 +579,8 @@ async function analyzeChoice(choice) {
                 user_choice: choice,
                 expected_label: currentExpectedLabel || undefined,
                 message: currentMessage,
-                time_spent_seconds: timeSpent
+                time_spent_seconds: timeSpent,
+                free_practice: currentFreePractice
             })
         });
 
@@ -579,8 +593,15 @@ async function analyzeChoice(choice) {
 
         alert(
             data.feedback.feedback +
-            `\n\n(${mobileLabels.currentDifficulty || "Current difficulty"}: ${data.difficulty_now})`
+            `\n\n(${currentFreePractice ? "Free Practice — not saved" : `${mobileLabels.currentDifficulty || "Current difficulty"}: ${data.difficulty_now}`})`
         );
+
+        if (data.free_practice_available) {
+            currentFreePractice = window.confirm(
+                "You completed Level 10. Continue with unlimited Free Practice? These answers will not be saved."
+            );
+            freePracticeType = currentFreePractice ? currentType : "";
+        }
 
         // Reload next scenario automatically
         ScenarioEngine.load(currentType);
