@@ -58,6 +58,91 @@ body {
     text-shadow: 1px 1px 2px black;
 }
 
+/* Contextual help contributed by the prototype and adapted for the current layout. */
+.icon.help {
+    top: 360px;
+    left: 100px;
+    width: 64px;
+    height: 64px;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    background: rgba(17, 110, 196, 0.92);
+    color: white;
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 58px;
+}
+
+.icon.help::after {
+    content: attr(data-label);
+    display: block;
+    margin-top: 12px;
+    font-size: 25px;
+    color: white;
+    text-shadow: 1px 1px 2px black;
+}
+
+.training-hint {
+    position: fixed;
+    z-index: 220;
+    width: min(360px, calc(100vw - 32px));
+    padding: 18px 38px 18px 18px;
+    border: 2px solid #1c3556;
+    border-radius: 12px;
+    background: #fff6b8;
+    color: #14243a;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.training-hint h2 {
+    margin: 0 0 8px;
+    font-size: 18px;
+}
+
+.training-hint p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.training-hint--desktop {
+    top: 20px;
+    right: 20px;
+}
+
+.training-hint--email {
+    right: 24px;
+    bottom: 24px;
+}
+
+.training-hint--internet {
+    right: 24px;
+    bottom: 24px;
+}
+
+.training-hint__close {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    border: 0;
+    background: transparent;
+    color: #14243a;
+    font-size: 25px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+@media (max-width: 720px), (max-height: 600px) {
+    .training-hint--desktop {
+        top: auto;
+        bottom: 64px;
+    }
+
+    .icon.help {
+        top: 340px;
+    }
+}
+
 /*****************************
    Taskbar - Bottom Bar
 *****************************/

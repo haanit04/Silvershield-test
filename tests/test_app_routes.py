@@ -571,6 +571,21 @@ def test_pre_survey_requires_participant_to_be_at_least_60(app_client):
     assert "60" in response.get_data(as_text=True)
 
 
+def test_pre_survey_rejects_an_age_above_the_configured_maximum(app_client):
+    client, app_module, db_path = app_client
+    _seed_user(db_path, username="alice")
+
+    with client.session_transaction() as session:
+        session["username"] = "alice"
+
+    submission = _build_survey_submission(app_module, db_path, "alice", "pre")
+    submission["D1"] = "121"
+    response = client.post("/pre_survey", data=submission)
+
+    assert response.status_code == 200
+    assert "120" in response.get_data(as_text=True)
+
+
 def test_post_survey_completes_training_flow_and_saves_usability_score(app_client, monkeypatch):
     client, app_module, db_path = app_client
     _seed_user(db_path, username="alice")

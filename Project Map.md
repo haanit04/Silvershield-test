@@ -14,6 +14,7 @@ Silvershield is a Flask cybersecurity-training app. Users register, pass SMS two
 5. `GET /dashboard` — progress hub (`templates/dashboard.html` + `static/dashboard.js`)
 6. Training modules (each simulation needs 5 logged attempts before that module counts as done):
    - `GET /module1` — desktop email + desktop browser (`templates/desktopPage.html`)
+     - Includes contextual Help guidance (`static/desktopHelp.js`) for the desktop, email, and browser simulations
    - `GET /module2` — mobile email, SMS, call, web (`templates/MobilePage.html`)
    - `GET /phone_roleplay` — branching phone-scam role-play (`templates/phoneRoleplay.html`)
 7. When all three modules are complete, `GET /dashboard` redirects to `GET/POST /post_survey`
@@ -41,6 +42,7 @@ Languages: English (`en`), Spanish (`es`), Chinese (`zh`). `GET /set_language/<l
 | `multimodal.py` | `POST /tts` — text to MP3 via gTTS |
 | `templates/*.html` | Pages the server renders |
 | `static/*.js` | Browser behavior for each page |
+| `static/desktopHelp.js` | Opens and closes contextual Help guidance in the desktop module |
 | `static/*.css` | Page styles |
 | `static/snippets/*.html` | Fake phone-app screens loaded into the mobile module |
 | `translations/es/.../messages.po` | Spanish UI strings (Flask-Babel) |

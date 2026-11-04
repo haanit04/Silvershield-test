@@ -124,9 +124,11 @@
                 <p class="questionText">{{ question.text }}</p>
                 {% if question.type == 'numeric' %}
                   <input type="number" name="{{ question.fieldName }}" step="1" inputmode="numeric"
+                    aria-describedby="{{ question.fieldName }}-error"
                     {% if question.min is defined %}min="{{ question.min }}"{% endif %}
                     {% if question.max is defined %}max="{{ question.max }}"{% endif %}
                     {% if question.required %}data-required="true"{% endif %}>
+                  <p class="fieldError" id="{{ question.fieldName }}-error" role="alert" hidden></p>
                   {% if question.helperText %}
                     <p class="sectionNote">{{ question.helperText }}</p>
                   {% endif %}
@@ -263,7 +265,50 @@
       const I18N_REQUIRED_PAGE = {{ _('Please answer all required questions on this page before continuing.')|tojson }};
       const I18N_REQUIRED_SUBMIT = {{ _('Please answer all required questions before submitting.')|tojson }};
       const I18N_CONSENT_REQUIRED = {{ _('Consent is required before Silver Shield can collect survey and analytics data.')|tojson }};
+      const I18N_WHOLE_NUMBER = {{ _('Please enter a whole number.')|tojson }};
+      const I18N_MINIMUM_AGE = {{ _('This study is for adults age %(minimum)s and older.', minimum='__MINIMUM__')|tojson }};
+      const I18N_MAXIMUM_AGE = {{ _('Please enter an age no greater than %(maximum)s.', maximum='__MAXIMUM__')|tojson }};
       let currentPage = 0;
+      let pageValidationMessage = '';
+
+      function setNumericError(input, message) {
+        const error = document.getElementById(input.name + '-error');
+        if (error) {
+          error.textContent = message || '';
+          error.hidden = !message;
+        }
+        input.setAttribute('aria-invalid', message ? 'true' : 'false');
+      }
+
+      function validateNumericInput(input) {
+        const value = input.value.trim();
+        if (!value) {
+          setNumericError(input, '');
+          return '';
+        }
+
+        const numericValue = Number(value);
+        if (!Number.isInteger(numericValue)) {
+          setNumericError(input, I18N_WHOLE_NUMBER);
+          return I18N_WHOLE_NUMBER;
+        }
+
+        const minimum = input.min === '' ? null : Number(input.min);
+        const maximum = input.max === '' ? null : Number(input.max);
+        if (minimum !== null && numericValue < minimum) {
+          const message = I18N_MINIMUM_AGE.replace('__MINIMUM__', minimum);
+          setNumericError(input, message);
+          return message;
+        }
+        if (maximum !== null && numericValue > maximum) {
+          const message = I18N_MAXIMUM_AGE.replace('__MAXIMUM__', maximum);
+          setNumericError(input, message);
+          return message;
+        }
+
+        setNumericError(input, '');
+        return '';
+      }
 
       function checkConsentResponse() {
         const consentPage = document.getElementById('consentPage');
@@ -307,6 +352,7 @@
         const pages = getPages();
         const page = pages[currentPage];
         let valid = true;
+        pageValidationMessage = '';
 
         // Special validation for consent page
         if (currentPage === 0 && document.getElementById('consentPage')) {
@@ -326,7 +372,17 @@
             const group = page.querySelectorAll('input[name="' + input.name + '"]');
             const checked = Array.from(group).some(function(r) { return r.checked; });
             if (!checked) { valid = false; }
-          } else if (input.type === 'number' || input.tagName === 'TEXTAREA') {
+          } else if (input.type === 'number') {
+            if (!input.value.trim()) {
+              valid = false;
+            } else {
+              const numericError = validateNumericInput(input);
+              if (numericError) {
+                valid = false;
+                pageValidationMessage = numericError;
+              }
+            }
+          } else if (input.tagName === 'TEXTAREA') {
             if (!input.value.trim()) { valid = false; }
           }
         });
@@ -352,7 +408,7 @@
           if (currentPage === 0 && consentResponse === false) {
             alert(I18N_CONSENT_REQUIRED);
           } else {
-            alert(I18N_REQUIRED_PAGE);
+            alert(pageValidationMessage || I18N_REQUIRED_PAGE);
           }
           return;
         }
@@ -464,6 +520,11 @@
 
       document.getElementById('surveyForm').addEventListener('input', persistDraft);
       document.getElementById('surveyForm').addEventListener('change', persistDraft);
+      document.querySelectorAll('input[type="number"]').forEach(function(input) {
+        input.addEventListener('blur', function() {
+          validateNumericInput(input);
+        });
+      });
       document.querySelectorAll('.langLink').forEach(function(link) {
         link.addEventListener('click', persistDraft);
       });

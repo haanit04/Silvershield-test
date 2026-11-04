@@ -14,11 +14,18 @@
 
 <a class="module-back-link" href="{{ back_to_dashboard_url }}">{{ _("Back to Dashboard") }}</a>
 
-<!-- Desktop Icons -->
+<!-- Desktop icons and optional first-time guidance -->
 <div class="desktop">
     <div class="icon email" data-label="{{ _('Gmail') }}"></div>
     <div class="icon internet" data-label="{{ _('Chrome') }}"></div>
+    <button class="icon help" type="button" data-label="{{ _('Help') }}" aria-label="{{ _('Show training help') }}">?</button>
 </div>
+
+<aside class="training-hint training-hint--desktop" data-training-hint="desktop" role="status">
+    <button class="training-hint__close" type="button" aria-label="{{ _('Close help') }}">×</button>
+    <h2>{{ _('Welcome to the desktop training module') }}</h2>
+    <p>{{ _('Choose Gmail or Chrome to begin. Use Help at any time to review these instructions.') }}</p>
+</aside>
 
 
 <!-- Bottom Taskbar -->
@@ -122,6 +129,12 @@
         <div id="notificationMessageEmail"></div>
     </div>
 
+    <aside class="training-hint training-hint--email" data-training-hint="email" hidden>
+        <button class="training-hint__close" type="button" aria-label="{{ _('Close help') }}">×</button>
+        <h2>{{ _('Email practice') }}</h2>
+        <p>{{ _('Read the sender, subject, and message. You can use Read aloud, then decide whether the email is real or fake.') }}</p>
+    </aside>
+
 </div>
 
 
@@ -212,6 +225,12 @@
         <div id="notificationMessageInternet"></div>
     </div>
 
+    <aside class="training-hint training-hint--internet" data-training-hint="internet" hidden>
+        <button class="training-hint__close" type="button" aria-label="{{ _('Close help') }}">×</button>
+        <h2>{{ _('Website practice') }}</h2>
+        <p>{{ _('Search, open a result, inspect the address and page details, then decide whether the website is real or fake.') }}</p>
+    </aside>
+
 </div>
 
 
@@ -252,5 +271,6 @@ window.desktopLabels = {
 <script src="{{ url_for('static', filename='desktopEmail.js') }}"></script>
 <script src="{{ url_for('static', filename='desktopInternet.js') }}"></script>
 <script src="{{ url_for('static', filename='notification.js') }}"></script>
+<script src="{{ url_for('static', filename='desktopHelp.js') }}"></script>
 </body>
 </html>

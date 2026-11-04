@@ -261,6 +261,13 @@ textarea {
 }
 .surveyPage { display: none; }
 .surveyPage.active { display: contents; }
+
+/* Inline numeric-validation feedback, including the 60+ study eligibility check. */
+.fieldError {
+  margin: 0.45rem 0 0;
+  color: #b42318;
+  font-weight: 700;
+}
 /* Small-screen layout. */
 @media (max-width: 720px) {
   .wrap {

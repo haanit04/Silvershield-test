@@ -14,8 +14,15 @@
     filter: drop-shadow(0px 1px 5px);
     z-index:3;
 }
-.loginBanner > h1 {
+.bannerTitle {
+    width: auto;
     margin: 0;
+}
+
+.bannerTitle h1 {
+    margin: 0;
+    color: white;
+    font-size: 2.1rem;
 }
 
 .loginRegisterButtons {
