@@ -55,6 +55,49 @@ def _build_survey_submission(app_module, db_path, username, phase, include_conse
                 data[question["fieldName"]] = _survey_answer_for(question)
 
     return data
+def test_guest_session_is_saved_and_cannot_log_in(app_client):
+    client, _, db_path = app_client
+
+    denied = client.post("/guest", data={"consent": "no"})
+    assert denied.status_code == 400
+    assert denied.get_json()["success"] is False
+
+    started = client.post("/guest", data={"consent": "yes"})
+    payload = started.get_json()
+    assert started.status_code == 200
+    assert payload["success"] is True
+    assert payload["redirect_url"].endswith("/pre_survey")
+
+    with client.session_transaction() as sess:
+        guest_id = sess["username"]
+        assert sess["is_guest"] is True
+
+    assert guest_id.startswith("guest_")
+
+    with sqlite3.connect(db_path) as conn:
+        guest_row = conn.execute(
+            "SELECT guest_id, consent_granted FROM guest_sessions WHERE guest_id = ?",
+            (guest_id,),
+        ).fetchone()
+        user_row = conn.execute(
+            "SELECT 1 FROM users WHERE username = ?",
+            (guest_id,),
+        ).fetchone()
+
+    assert guest_row == (guest_id, 1)
+    assert user_row is None
+
+    survey_response = client.get("/pre_survey")
+    assert survey_response.status_code == 200
+
+    login_response = client.post(
+        "/login",
+        data={"username": guest_id, "password": "does-not-matter"},
+    )
+    assert login_response.status_code == 200
+    assert login_response.get_json()["success"] is False
+
+
 def test_home_page_loads(app_client):
     client, _, _ = app_client
     response = client.get("/")

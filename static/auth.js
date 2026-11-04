@@ -293,6 +293,67 @@ if(loginVerifyOTPBtn)
     })
 }
 
+const guestStart = document.getElementById("guest-start");
+const guestBack = document.getElementById("guest-back");
+const guestConfirm = document.getElementById("guest-confirm");
+const guestConsent = document.getElementById("guest-consent");
+const guestError = document.getElementById("guest-error");
+
+if (guestStart)
+{
+    guestStart.addEventListener("click", () => {
+        showLoginSlide(5);
+    });
+}
+
+if (guestBack)
+{
+    guestBack.addEventListener("click", () => {
+        if (guestError)
+        {
+            guestError.textContent = "";
+        }
+        showLoginSlide(1);
+    });
+}
+
+if (guestConfirm)
+{
+    guestConfirm.addEventListener("click", async () => {
+        if (!guestConsent || !guestConsent.checked)
+        {
+            if (guestError)
+            {
+                guestError.textContent = "Please agree to take part before continuing.";
+            }
+            return;
+        }
+
+        if (guestError)
+        {
+            guestError.textContent = "";
+        }
+
+        const response = await fetch("/guest", {
+            method: "POST",
+            body: new URLSearchParams({consent: "yes"})
+        });
+
+        const result = await response.json();
+
+        if (!result.success)
+        {
+            if (guestError)
+            {
+                guestError.textContent = result.message || "Could not start a guest session.";
+            }
+            return;
+        }
+
+        window.location.href = result.redirect_url || "/pre_survey";
+    });
+}
+
 /***********************************
  Registration - Validation Functions
 ************************************/

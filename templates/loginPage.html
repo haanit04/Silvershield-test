@@ -108,6 +108,18 @@
 
 </div>
 
+<div class="btn-group">
+<button type="button"
+        class="btn"
+        id="guest-start">
+{{ _("Continue as guest") }}
+</button>
+</div>
+
+<p class="guest-note">
+{{ _("No account needed. Your training answers are saved for research.") }}
+</p>
+
 </div>
 
 
@@ -214,6 +226,49 @@
 
 </button>
 
+</div>
+
+<div class="links">
+
+<a href="#" class="login-back-to-login">
+{{ _("Back to log in") }}
+</a>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- Slide 5 - guest consent -->
+
+<div class="login-slide slide" id="login-slide5">
+
+<div class="form-group">
+
+<h1>{{ _("Continue as guest") }}</h1>
+
+<p>
+{{ _("You can use SilverShield without an account. We save your survey answers and training results under an anonymous guest id so the study can measure learning. We do not ask for your name, email, phone, or address.") }}
+</p>
+
+<label class="guest-consent-label" for="guest-consent">
+<input type="checkbox" id="guest-consent">
+{{ _("I agree to take part and to have my training data saved.") }}
+</label>
+
+<div class="guest-error" id="guest-error"></div>
+
+<div class="btn-group">
+<button type="button" class="btn" id="guest-confirm">
+{{ _("Start training") }}
+</button>
+</div>
+
+<div class="links">
+<button type="button" class="guest-back" id="guest-back">
+{{ _("Back to log in") }}
+</button>
 </div>
 
 </div>

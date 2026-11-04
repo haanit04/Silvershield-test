@@ -47,6 +47,40 @@
     display: block;
 }
 
+.guest-note {
+  margin-top: 0.75rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.guest-consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  color: white;
+  margin-top: 0.5rem;
+}
+
+.guest-consent-label input {
+  width: auto;
+  margin-top: 0.2rem;
+}
+
+.guest-error {
+  color: red;
+  font-size: 14px;
+  margin-top: 8px;
+  min-height: 1.2em;
+}
+
+.guest-back {
+  background: none;
+  border: none;
+  color: #0073e6;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
 /* Responsive: stack on small screens */
 @media (max-width: 768px) {
   .login-container {

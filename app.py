@@ -5,7 +5,7 @@ import random
 import hashlib
 from dotenv import load_dotenv
 import requests
-from database import init_database, TEST_USER_USERNAME
+from database import init_database, TEST_USER_USERNAME, create_guest_session, is_guest_username
 from user_login import find_account, update_password, user_registration, verifying_login
 from TWOFA import send_otp, verify_otp
 from flask_babel import Babel, gettext, get_locale, _
@@ -861,6 +861,31 @@ def save_progress():
     return render_template("dashboard.html")
 
 ################################
+#      Guest session route
+################################
+@app.route('/guest', methods=['POST'])
+def continue_as_guest():
+    consent = (request.form.get('consent') or '').strip().lower()
+    if consent != 'yes':
+        return jsonify({
+            "success": False,
+            "message": "Please agree to take part before continuing."
+        }), 400
+
+    try:
+        guest_id = create_guest_session(True)
+    except Exception:
+        return jsonify({
+            "success": False,
+            "message": "Could not start a guest session."
+        }), 500
+
+    session['username'] = guest_id
+    session['is_guest'] = True
+    return jsonify(success=True, redirect_url=url_for('pre_survey'))
+
+
+################################
 #      Registration route
 ################################
 @app.route('/register', methods=['POST'])
@@ -885,6 +910,9 @@ def register():
 def login_post():
     usernameorEmail = request.form['username'].strip()
     password = request.form['password'].strip()
+
+    if is_guest_username(usernameorEmail):
+        return jsonify({"success": False, "message": "Invalid username or password"})
 
     valid, phone, canonical_username = verifying_login(usernameorEmail, password)
 
