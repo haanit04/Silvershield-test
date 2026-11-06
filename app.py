@@ -5,7 +5,7 @@ import random
 import hashlib
 from dotenv import load_dotenv
 import requests
-from database import init_database, TEST_USER_USERNAME
+from database import init_database, TEST_USER_USERNAME, create_guest_session, is_guest_username
 from user_login import find_account, update_password, user_registration, verifying_login
 from TWOFA import send_otp, verify_otp
 from flask_babel import Babel, gettext, get_locale, _
@@ -605,6 +605,23 @@ def account_creation():
     return render_template("accountCreation.html")
 
 
+@app.route('/guest-session', methods=['POST'])
+def guest_session():
+    """Start an anonymous survey session without collecting contact information."""
+    consent = (request.form.get('consent') or '').strip().lower()
+    if consent != 'yes':
+        return jsonify(success=False, message="Please agree before continuing as a guest."), 400
+
+    try:
+        username = create_guest_session(True)
+    except (RuntimeError, ValueError):
+        return jsonify(success=False, message="Could not start a guest session. Please try again."), 500
+
+    session['username'] = username
+    session['is_guest'] = True
+    return jsonify(success=True, redirect_url=url_for('pre_survey'))
+
+
 @app.route('/dashboard')
 def dashboard():
     username = session.get('username')
@@ -874,6 +891,7 @@ def register():
     success, message = user_registration(username, password, email, phone, address)
     if success:
         session['username'] = username
+        session.pop('is_guest', None)
         return jsonify(success=True, message=message, redirect_url=url_for('pre_survey'))
     return jsonify(success=False, message=message)
 
@@ -886,6 +904,9 @@ def login_post():
     usernameorEmail = request.form['username'].strip()
     password = request.form['password'].strip()
 
+    if is_guest_username(usernameorEmail):
+        return jsonify({"success": False, "message": "Guest sessions cannot be reopened after they end."})
+
     valid, phone, canonical_username = verifying_login(usernameorEmail, password)
 
     if not valid:
@@ -893,6 +914,7 @@ def login_post():
 
     # Storing logged in user for session
     session["username"] = canonical_username
+    session.pop('is_guest', None)
 
     if canonical_username == TEST_USER_USERNAME:
         return jsonify({

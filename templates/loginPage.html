@@ -108,6 +108,14 @@
 
 </div>
 
+<div class="btn-group">
+<button type="button" class="btn" id="guest-start">
+{{ _("Continue as Guest") }}
+</button>
+</div>
+
+<p class="guest-note">{{ _("No account is needed for an anonymous in-person survey.") }}</p>
+
 </div>
 
 
@@ -140,6 +148,23 @@
 
 </div>
 
+</div>
+
+<!-- Slide 5 - guest consent -->
+<div class="login-slide slide" id="login-slide5">
+<div class="form-group">
+<h1>{{ _("Continue as Guest") }}</h1>
+<p>{{ _("Your survey answers and training results will be saved under a random guest ID. We do not ask for your name, email, phone number, or address.") }}</p>
+<label class="guest-consent-label" for="login-guest-consent">
+<input type="checkbox" id="login-guest-consent">
+{{ _("I agree to take part and to have my anonymous study data saved.") }}
+</label>
+<div id="login-guest-error" class="login-otp-error"></div>
+<div class="btn-group">
+<button type="button" class="btn" id="guest-confirm">{{ _("Start Survey") }}</button>
+</div>
+<div class="links"><button type="button" class="guest-back" id="guest-back">{{ _("Back to Log In") }}</button></div>
+</div>
 </div>
 
 <!-- Slide 3 - request a reset code -->

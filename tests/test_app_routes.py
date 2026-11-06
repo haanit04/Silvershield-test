@@ -98,6 +98,47 @@ def test_register_and_login_flow(app_client):
     assert login_payload["otp_sent"] is True
 
 
+def test_guest_session_creates_an_anonymous_participant(app_client):
+    client, _, db_path = app_client
+
+    missing_consent = client.post("/guest-session")
+    assert missing_consent.status_code == 400
+    assert missing_consent.get_json()["success"] is False
+
+    response = client.post("/guest-session", data={"consent": "yes"})
+
+    payload = response.get_json()
+    assert response.status_code == 200
+    assert payload["success"] is True
+    assert payload["redirect_url"].endswith("/pre_survey")
+
+    with client.session_transaction() as session_data:
+        username = session_data["username"]
+        assert username.startswith("guest")
+        assert session_data["is_guest"] is True
+
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT consent_granted FROM guest_sessions WHERE guest_id = ?", (username,)
+        ).fetchone()
+
+    assert row == (1,)
+
+
+def test_guest_session_cannot_be_logged_into_again(app_client):
+    client, _, _ = app_client
+    guest_response = client.post("/guest-session", data={"consent": "yes"})
+
+    with client.session_transaction() as session_data:
+        guest_id = session_data["username"]
+
+    login_response = client.post("/login", data={"username": guest_id, "password": "anything"})
+
+    assert login_response.status_code == 200
+    assert login_response.get_json()["success"] is False
+    assert "cannot be reopened" in login_response.get_json()["message"]
+
+
 def test_forgot_password_updates_only_after_otp(app_client):
     client, _, _ = app_client
 

@@ -1,3 +1,4 @@
+import secrets
 import sqlite3
 from werkzeug.security import generate_password_hash
 
@@ -424,8 +425,47 @@ def init_database():
                     ON module_assessment_results(username, module_name, phase)
     ''')
 
+    cursor.execute('''CREATE TABLE IF NOT EXISTS guest_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    guest_id TEXT UNIQUE NOT NULL,
+                    consent_granted INTEGER NOT NULL CHECK(consent_granted IN (0, 1)),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)
+    ''')
+
     connect.commit()
     connect.close()
+
+
+def create_guest_session(consent_granted):
+    """Create an anonymous, consented participant record without contact details."""
+    if not consent_granted:
+        raise ValueError("Guest consent is required")
+
+    with sqlite3.connect(DB_PATH) as connect:
+        cursor = connect.cursor()
+        for _ in range(5):
+            guest_id = "guest_" + secrets.token_hex(8)
+            try:
+                cursor.execute(
+                    "INSERT INTO guest_sessions (guest_id, consent_granted) VALUES (?, ?)",
+                    (guest_id, 1),
+                )
+                return guest_id
+            except sqlite3.IntegrityError:
+                continue
+
+    raise RuntimeError("Could not create a unique guest id")
+
+
+def is_guest_username(username):
+    if not username:
+        return False
+
+    with sqlite3.connect(DB_PATH) as connect:
+        row = connect.execute(
+            "SELECT 1 FROM guest_sessions WHERE guest_id = ?", (username,)
+        ).fetchone()
+    return row is not None
 
 
 if __name__ == '__main__':

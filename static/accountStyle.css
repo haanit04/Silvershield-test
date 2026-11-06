@@ -24,6 +24,58 @@
   max-width: 300px;
 }
 
+.guest-entry {
+  border: 1px solid #4e8df7;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.guest-entry h2 {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
+}
+
+.guest-entry p {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+}
+
+.guest-entry .btn {
+  width: 100%;
+}
+
+.guest-consent-label {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 12px 0;
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.guest-consent-label input {
+  width: auto;
+  margin: 3px 0 0;
+}
+
+.guest-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  color: #d4d9e4;
+  font-size: 0.85rem;
+}
+
+.guest-divider::before,
+.guest-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid #536078;
+}
+
 /* Account inputs */
 .account-form-group {
   margin-bottom: 1rem;
