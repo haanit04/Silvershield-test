@@ -38,6 +38,34 @@
     color: green;
 }
 
+.guest-note {
+  color: #d4d9e4;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.guest-consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #fff;
+  line-height: 1.4;
+}
+
+.guest-consent-label input {
+  width: auto;
+  margin-top: 4px;
+}
+
+.guest-back {
+  background: transparent;
+  border: 0;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+
 /* Login slides */
 .login-slide {
     display:none;

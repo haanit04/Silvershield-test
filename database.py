@@ -1,4 +1,6 @@
+import secrets
 import sqlite3
+from db_connection import connect as db_connect, using_postgres
 from werkzeug.security import generate_password_hash
 
 DB_PATH = 'silvershieldDatabase.db'
@@ -112,7 +114,11 @@ def _ensure_test_user(cursor):
 
 
 def init_database():
-    connect = sqlite3.connect(DB_PATH)
+    if using_postgres():
+        from db_connection import initialize_postgres
+        initialize_postgres()
+        return
+    connect = db_connect(DB_PATH)
     cursor = connect.cursor()
 
     cursor.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -424,8 +430,45 @@ def init_database():
                     ON module_assessment_results(username, module_name, phase)
     ''')
 
+    cursor.execute('''CREATE TABLE IF NOT EXISTS guest_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    guest_id TEXT UNIQUE NOT NULL,
+                    consent_granted INTEGER NOT NULL CHECK(consent_granted IN (0, 1)),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)
+    ''')
+
     connect.commit()
     connect.close()
+
+
+def create_guest_session(consent_granted):
+    """Create an anonymous, consented participant record without contact details."""
+    if not consent_granted:
+        raise ValueError("Guest consent is required")
+
+    with db_connect(DB_PATH) as connect:
+        cursor = connect.cursor()
+        for _ in range(5):
+            guest_id = "guest_" + secrets.token_hex(8)
+            cursor.execute(
+                "INSERT INTO guest_sessions (guest_id, consent_granted) VALUES (?, ?) ON CONFLICT DO NOTHING",
+                (guest_id, True),
+            )
+            if cursor.rowcount:
+                return guest_id
+
+    raise RuntimeError("Could not create a unique guest id")
+
+
+def is_guest_username(username):
+    if not username:
+        return False
+
+    with db_connect(DB_PATH) as connect:
+        row = connect.execute(
+            "SELECT 1 FROM guest_sessions WHERE guest_id = ?", (username,)
+        ).fetchone()
+    return row is not None
 
 
 if __name__ == '__main__':

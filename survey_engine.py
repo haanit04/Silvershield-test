@@ -3,6 +3,7 @@ import json
 import os
 import random
 import sqlite3
+from db_connection import connect as db_connect, using_postgres
 from functools import lru_cache
 from flask_babel import gettext as _, get_locale
 
@@ -140,9 +141,9 @@ def _ensure_section3_assignments(cursor, username, phase, section):
             display_order += 1
             cursor.execute(
                 """
-                INSERT OR IGNORE INTO survey_question_assignments (
+                INSERT INTO survey_question_assignments (
                     username, survey_phase, section_id, subsection_id, question_id, display_order
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
                 """,
                 (
                     username,
@@ -163,7 +164,7 @@ def ensure_phase_assignments(db_path, username, phase):
     if not knowledge_sections:
         return
 
-    with sqlite3.connect(db_path) as conn:
+    with db_connect(db_path) as conn:
         cursor = conn.cursor()
         for section in knowledge_sections:
             _ensure_section3_assignments(cursor, username, phase, section)
@@ -209,7 +210,7 @@ def build_survey_view_model(db_path, username, phase):
     survey = get_survey_config(phase)
     sections = []
 
-    with sqlite3.connect(db_path) as conn:
+    with db_connect(db_path) as conn:
         cursor = conn.cursor()
         for section in survey.get("sections", []):
             section_view = {
@@ -472,7 +473,7 @@ def _upsert_usability_summary(cursor, username, answers):
 
 
 def save_survey_submission(db_path, username, phase, survey_model, answers):
-    with sqlite3.connect(db_path) as conn:
+    with db_connect(db_path) as conn:
         cursor = conn.cursor()
 
         if survey_model.get("consent"):
@@ -489,7 +490,7 @@ def save_survey_submission(db_path, username, phase, survey_model, answers):
                 """,
                 (
                     username,
-                    1 if answers.get("consent_response") == "yes" else 0,
+                    answers.get("consent_response") == "yes",
                     survey_model["consent"].get("prompt"),
                     survey_model["consent"].get("details"),
                 ),
@@ -505,7 +506,7 @@ def save_survey_submission(db_path, username, phase, survey_model, answers):
                 """
                 INSERT INTO survey_responses (
                     username, survey_phase, section_id, subsection_id, question_id, response_value
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
                 """,
                 (
                     username,

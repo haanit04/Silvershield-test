@@ -10,6 +10,7 @@ This module handles all Assessment & Metrics functionality (Goal 2):
 """
 
 import sqlite3
+from db_connection import connect as db_connect, using_postgres, insert_id
 import json
 import time
 from datetime import datetime, timedelta
@@ -20,7 +21,7 @@ REQUIRED_ATTEMPTS_PER_SIMULATION = 5
 
 def _connect():
     """Return a SQLite connection with a retry timeout to avoid 'database is locked' errors."""
-    return sqlite3.connect(DB_PATH, timeout=10)
+    return db_connect(DB_PATH, timeout=10)
 
 
 def log_scenario_attempt(username, scenario_type, platform, user_choice, correct_answer,
@@ -65,14 +66,13 @@ def log_scenario_attempt(username, scenario_type, platform, user_choice, correct
             # No timing info, set start_time to end_time
             start_time_str = end_time_str
         
-        cursor.execute("""
+        scenario_attempt_id = insert_id(cursor, """
             INSERT INTO scenario_attempts 
             (username, scenario_type, scenario_platform, user_choice, correct_answer, 
              is_correct, difficulty_level, ai_feedback, start_time, end_time, duration_seconds, message)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (username, scenario_type, platform, user_choice, correct_answer, is_correct, 
               difficulty_level, ai_feedback, start_time_str, end_time_str, duration_seconds, message))
-        scenario_attempt_id = cursor.lastrowid
 
         # Treat provided clues as critical indicators identified in this attempt.
         indicator_list = [indicator for indicator in (indicators_found or []) if indicator]
@@ -313,8 +313,8 @@ def get_survey_comparison(username):
 
             cursor.execute("""
                 SELECT module_name,
-                       ROUND(AVG(CASE WHEN phase = 'pre' THEN is_correct END) * 100.0, 1) AS pre_score,
-                       ROUND(AVG(CASE WHEN phase = 'post' THEN is_correct END) * 100.0, 1) AS post_score,
+                       ROUND(AVG(CASE WHEN phase = 'pre' THEN CASE WHEN is_correct THEN 1 ELSE 0 END END) * 100.0, 1) AS pre_score,
+                       ROUND(AVG(CASE WHEN phase = 'post' THEN CASE WHEN is_correct THEN 1 ELSE 0 END END) * 100.0, 1) AS post_score,
                        SUM(CASE WHEN phase = 'pre' THEN 1 ELSE 0 END) AS pre_count,
                        SUM(CASE WHEN phase = 'post' THEN 1 ELSE 0 END) AS post_count
                 FROM module_assessment_results

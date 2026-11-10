@@ -1,10 +1,15 @@
 import sqlite3
+from db_connection import connect, using_postgres, INTEGRITY_ERRORS
 from werkzeug.security import generate_password_hash, check_password_hash
 
 def connecting_to_database():
-    connect = sqlite3.connect('silvershieldDatabase.db')
-    connect.row_factory = sqlite3.Row
-    return connect
+    connection = connect()
+    if using_postgres():
+        from psycopg.rows import dict_row
+        connection.row_factory = dict_row
+    else:
+        connection.row_factory = sqlite3.Row
+    return connection
 
 def user_registration(username, password, email, phone, address):
     connect = connecting_to_database()
@@ -16,7 +21,7 @@ def user_registration(username, password, email, phone, address):
         connect.commit()
         print("User Registration Successful")
         return True, "User Registration Successful"
-    except sqlite3.IntegrityError:
+    except INTEGRITY_ERRORS:
         print("Username or phone already exists")
         return False, "Username or phone already exists"
     except Exception as e:

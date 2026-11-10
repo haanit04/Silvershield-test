@@ -7,6 +7,8 @@ services:
     startCommand: gunicorn app:app
     autoDeploy: true
     envVars:
+      - key: DATABASE_URL
+        sync: false
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: SECRET_KEY

@@ -33,6 +33,7 @@ def test_init_database_creates_expected_tables(monkeypatch, tmp_path):
         "user_consents",
         "survey_question_assignments",
         "survey_responses",
+        "guest_sessions",
     }
 
     assert expected_tables.issubset(tables)
